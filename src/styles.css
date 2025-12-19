@@ -1,0 +1,54 @@
+/* Theme variables live on :root via inline style set by App */
+:root{
+  --bg1:#0f172a;
+  --bg2:#111827;
+  --card:#111827;
+  --card2:rgba(15,23,42,.35);
+  --line:rgba(229,231,235,.12);
+  --text:#e5e7eb;
+  --muted:rgba(229,231,235,.75);
+  --btn:#475569;
+  --btnActive:#64748b;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+}
+
+*{box-sizing:border-box;font-family:'Inter',sans-serif}
+body{margin:0;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh}
+.app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:var(--card);padding:32px;border-radius:16px;text-align:center;max-width:980px;width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
+h1,h2,p{margin:0}
+input,select{padding:10px 12px;border-radius:10px;border:1px solid rgba(229,231,235,.2);background:rgba(15,23,42,.6);color:var(--text);width:100%}
+button{padding:10px 14px;border:none;border-radius:12px;background:var(--btn);color:#fff;font-weight:600;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.small{font-size:.9rem;opacity:.75}
+.bid{font-size:56px;font-weight:700}
+.hr{height:1px;width:100%;background:var(--line);margin:6px 0}
+
+.controlsRow{width:100%;display:flex;align-items:stretch;gap:18px}
+.controlBox{flex:1;background:var(--card2);border:1px solid rgba(229,231,235,.10);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:240px}
+.boxTitle{font-size:.85rem;opacity:.8;letter-spacing:.08em;text-transform:uppercase}
+.boxDivider{width:1px;background:rgba(229,231,235,.14)}
+
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;border:1px solid rgba(229,231,235,.14);background:rgba(15,23,42,.35);font-size:.9rem}
+.dot{width:8px;height:8px;border-radius:999px;background:rgba(229,231,235,.5)}
+.dot.ok{background:var(--ok)}
+.dot.warn{background:var(--warn)}
+
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid rgba(229,231,235,.12);background:rgba(15,23,42,.35);font-size:.85rem}
+
+@media (max-width: 900px){
+  .card{max-width:520px}
+  .controlsRow{flex-direction:column}
+  .boxDivider{display:none}
+}
+
+
+/* Countdown bar */
+.barWrap{width:100%;max-width:520px;margin-top:6px}
+.barTrack{width:100%;height:12px;border-radius:999px;background:rgba(229,231,235,.14);overflow:hidden}
+.barFill{height:100%;width:0%;background:var(--btnActive);transition:width .25s linear}
+.barMeta{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.flash{animation:flash 1s steps(2,end) infinite}
+@keyframes flash{50%{opacity:.35}}
