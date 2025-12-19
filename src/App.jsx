@@ -128,6 +128,7 @@ export default function App() {
   const [room, setRoom] = useState(null)
   const [loadingRoom, setLoadingRoom] = useState(true)
   const roomRef = useMemo(() => doc(db, 'rooms', roomCode), [roomCode])
+  const isGameHost = (room?.hostId && room.hostId === playerId) || isHost
 
   const [timeLeft, setTimeLeft] = useState(0)
   const [players, setPlayers] = useState([])
@@ -153,6 +154,7 @@ export default function App() {
       const snap = await getDoc(roomRef)
       if (snap.exists()) return
       await setDoc(roomRef, {
+        hostId: playerId,
         title: gameTitle || 'Auction Game',
         theme: 'classic',
         started: false,
@@ -195,7 +197,7 @@ export default function App() {
 
   // Subscribe to players realtime (HOST)
   useEffect(() => {
-    if (!isHost) return
+    if (!isGameHost) return
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const unsub = onSnapshot(playersRef, (snap) => {
       const list = snap.docs
@@ -205,7 +207,7 @@ export default function App() {
       setPlayers(list)
     })
     return () => unsub()
-  }, [isHost, roomCode])
+  }, [isGameHost, roomCode])
 
 
   // Keep host inputs in sync (first load)
@@ -225,9 +227,9 @@ export default function App() {
 
   // Init beeper (host creates audio context)
   useEffect(() => {
-    if (!isHost) return
+    if (!isGameHost) return
     if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
-  }, [isHost])
+  }, [isGameHost])
   // Timer computed locally from room.timer
   const endAtMs = room?.timer?.endAtMs || 0
   const paused = !!room?.timer?.paused
@@ -257,7 +259,7 @@ export default function App() {
 
   // Final 10-second countdown beeps (HOST ONLY) — option 1 (every second 10..1)
   useEffect(() => {
-    if (!isHost) return
+    if (!isGameHost) return
     if (!room?.started) return
     if (!beepsReady) return
     if (!beeperRef.current) return
@@ -271,7 +273,7 @@ export default function App() {
       beep10Ref.current.sec = timeLeft
       beeperRef.current.beepFinal(timeLeft)
     }
-  }, [timeLeft, isHost, room?.started, beepsReady])
+  }, [timeLeft, isGameHost, room?.started, beepsReady])
 
   // Auto reveal winner at 0
   const didAutoRevealRef = useRef(false)
@@ -325,6 +327,7 @@ export default function App() {
 
     // Host actions
   const hostSaveMeta = async () => {
+    if (!isGameHost) return
     await updateDoc(roomRef, {
       title: gameTitle || 'Auction Game',
       theme: themeKey,
@@ -332,6 +335,7 @@ export default function App() {
   }
 
   const hostStartGame = async () => {
+    if (!isGameHost) return
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
@@ -355,6 +359,7 @@ export default function App() {
   }
 
   const hostSetBidBase = async () => {
+    if (!isGameHost) return
     const v = Math.max(0, Number(bidInput) || 0)
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
@@ -371,16 +376,19 @@ export default function App() {
   }
 
   const hostResetToBase = async () => {
+    if (!isGameHost) return
     const base = Number(room?.baseBid ?? 50)
     await updateDoc(roomRef, { currentBid: base, currentPriceHasBid: false, revealedWinner: null })
   }
 
   const hostPickIncrement = async (v) => {
+    if (!isGameHost) return
     setIncrement(v)
     await updateDoc(roomRef, { increment: v })
   }
 
   const hostRaiseBid = async () => {
+    if (!isGameHost) return
     const inc = Number(room?.increment ?? increment ?? 10)
     const base = Number(room?.baseBid ?? 0)
     const next = Math.max(base, Number(room?.currentBid ?? 0) + inc)
@@ -389,6 +397,7 @@ export default function App() {
 
   // Timer
   const hostTimerStart = async () => {
+    if (!isGameHost) return
     const duration = Math.max(1, Math.floor(Number(customTime) || 60))
     const end = nowMs() + duration * 1000
     await updateDoc(roomRef, {
@@ -398,6 +407,7 @@ export default function App() {
   }
 
   const hostTimerPause = async () => {
+    if (!isGameHost) return
     const remaining = Math.max(0, Math.floor(timeLeft))
     await updateDoc(roomRef, {
       timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: true, pausedRemainingSec: remaining, updatedAt: serverTimestamp() },
@@ -405,6 +415,7 @@ export default function App() {
   }
 
   const hostTimerResume = async () => {
+    if (!isGameHost) return
     const remaining = Math.max(0, Math.floor(room?.timer?.pausedRemainingSec ?? timeLeft ?? 0))
     const end = nowMs() + remaining * 1000
     await updateDoc(roomRef, {
@@ -413,6 +424,7 @@ export default function App() {
   }
 
   const hostTimerEnd = async () => {
+    if (!isGameHost) return
     await updateDoc(roomRef, {
       timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
     })
@@ -502,7 +514,7 @@ export default function App() {
         <div className="card" style={{ width: 'min(1200px, 100%)' }}>
           <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
 
-          {isHost && (
+          {isGameHost && (
             <div className="card" style={{ background: 'var(--card2)' }}>
               <div className="row" style={{ gap: 12 }}>
                 <div style={{ flex: 1 }}>
@@ -536,7 +548,7 @@ export default function App() {
             </div>
 
             <div className="row" style={{ gap: 8 }}>
-              {isHost && !beepsReady && (
+              {isGameHost && !beepsReady && (
                 <button
                   onClick={async () => {
                     try {
@@ -549,7 +561,7 @@ export default function App() {
                   Enable Countdown Sound
                 </button>
               )}
-              {isHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
+              {isGameHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
               <button onClick={toggleFullscreen}>Full Screen</button>
             </div>
           </div>
@@ -584,7 +596,7 @@ export default function App() {
               </div>
             </div>
 
-            {privateNotice && !isHost && (
+            {privateNotice && !isGameHost && (
               <p className="small" aria-live="polite" style={{ marginTop: 8 }}>
                 {privateNotice}
               </p>
@@ -599,7 +611,7 @@ export default function App() {
             )}
           </div>
 
-          {!isHost && room?.started && (
+          {!isGameHost && room?.started && (
             <>
               <div className="hr" />
               <div className="controlsRow">
@@ -611,7 +623,7 @@ export default function App() {
             </>
           )}
 
-          {isHost && room?.started && (
+          {isGameHost && room?.started && (
             <>
               <div className="hr" />
 
