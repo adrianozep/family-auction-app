@@ -195,9 +195,8 @@ export default function App() {
     return () => unsub()
   }, [roomRef])
 
-  // Subscribe to players realtime (HOST)
+  // Subscribe to players realtime (everyone sees arrivals live)
   useEffect(() => {
-    if (!isGameHost) return
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const unsub = onSnapshot(playersRef, (snap) => {
       const list = snap.docs
@@ -207,7 +206,7 @@ export default function App() {
       setPlayers(list)
     })
     return () => unsub()
-  }, [isGameHost, roomCode])
+  }, [roomCode])
 
 
   // Keep host inputs in sync (first load)
@@ -393,6 +392,11 @@ export default function App() {
     const base = Number(room?.baseBid ?? 0)
     const next = Math.max(base, Number(room?.currentBid ?? 0) + inc)
     await updateDoc(roomRef, { currentBid: next, currentPriceHasBid: false, revealedWinner: null })
+    if (beeperRef.current && beepsReady) {
+      try {
+        beeperRef.current.playWhistle?.()
+      } catch {}
+    }
   }
 
   // Timer
@@ -430,8 +434,17 @@ export default function App() {
     })
   }
 
+  const hostEndGame = async () => {
+    if (!isGameHost) return
+    await updateDoc(roomRef, {
+      started: false,
+      timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
+      currentPriceHasBid: false,
+    })
+  }
+
   // Player bid (first tap wins at current price)
-    const playerBid = async () => {
+  const playerBid = async () => {
       if (!room?.started) return
       if (timeLeft <= 0) return
       setPrivateNotice('')
@@ -471,6 +484,7 @@ export default function App() {
       ? `First bid locked by ${room?.leadingBid?.name || 'player'}`
       : 'Waiting for first bid'
     const showWinner = !!room?.revealedWinner
+    const activeThemeKey = room?.theme || themeKey
 
     if (loadingRoom) {
       return (
@@ -512,6 +526,9 @@ export default function App() {
     return (
       <div className="app">
         <div className="card" style={{ width: 'min(1200px, 100%)' }}>
+          <div className="themeBackdrop" aria-hidden="true">
+            <ThemeClipArt themeKey={activeThemeKey} />
+          </div>
           <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
 
           {isGameHost && (
@@ -536,6 +553,18 @@ export default function App() {
             </div>
           )}
 
+          <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start', background: 'var(--card2)' }}>
+            <div className="boxTitle">Live Players ({players.length})</div>
+            {players.length === 0 && <p className="small">Waiting for players to register…</p>}
+            {players.length > 0 && (
+              <div className="playerGrid" aria-live="polite">
+                {players.map((p) => (
+                  <div key={p.id} className="playerChip">{p.name}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="row" style={{ alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <p className="small">Room Code</p>
@@ -558,10 +587,15 @@ export default function App() {
                     } catch {}
                   }}
                 >
-                  Enable Countdown Sound
+                  Enable Game Sounds
                 </button>
               )}
               {isGameHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
+              {isGameHost && (
+                <button disabled={!room?.started} onClick={hostEndGame}>
+                  End Game
+                </button>
+              )}
               <button onClick={toggleFullscreen}>Full Screen</button>
             </div>
           </div>
@@ -605,8 +639,17 @@ export default function App() {
             {showWinner && (
               <>
                 <div className="hr" />
-                <h2>Winner: {room.revealedWinner?.name}</h2>
-                <p className="small">Winning bid: <b>${room.revealedWinner?.amount}</b></p>
+                <div className="scoreboard">
+                  <div className="boxTitle">Round Results</div>
+                  <div className="scoreboardRow">
+                    <div>
+                      <p className="small">Winner</p>
+                      <h2>{room.revealedWinner?.name}</h2>
+                    </div>
+                    <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
+                  </div>
+                  <p className="small">Scoreboard stays visible after each round for everyone.</p>
+                </div>
               </>
             )}
           </div>
@@ -623,7 +666,7 @@ export default function App() {
             </>
           )}
 
-          {isGameHost && room?.started && (
+          {isGameHost && (
             <>
               <div className="hr" />
 
@@ -633,9 +676,9 @@ export default function App() {
                   <input type="number" min={1} max={600} value={customTime} onChange={e => setCustomTime(Number(e.target.value))} />
                   <div className="row">
                     <button onClick={hostTimerStart}>Start</button>
-                    <button disabled={timeLeft <= 0} onClick={hostTimerPause}>Pause</button>
-                    <button disabled={timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
-                    <button disabled={timeLeft <= 0} onClick={hostTimerEnd}>End</button>
+                    <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerPause}>Pause</button>
+                    <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
+                    <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerEnd}>End</button>
                   </div>
                   <p className="small">Remaining: <b>{formatTime(timeLeft)}</b></p>
                 </div>
