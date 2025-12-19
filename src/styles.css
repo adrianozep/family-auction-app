@@ -1,0 +1,31 @@
+*{box-sizing:border-box;font-family:'Inter',sans-serif}
+body{margin:0;background:#0f172a;color:#e5e7eb}
+.app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:#111827;padding:32px;border-radius:16px;text-align:center;max-width:980px;width:100%;display:flex;flex-direction:column;align-items:center;gap:16px}
+h1,h2,p{margin:0}
+input{padding:10px 12px;border-radius:10px;border:1px solid rgba(229,231,235,.2);background:rgba(15,23,42,.6);color:#e5e7eb;width:100%}
+button{padding:10px 14px;border:none;border-radius:12px;background:#475569;color:#fff;font-weight:600;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.small{font-size:.9rem;opacity:.75}
+.bid{font-size:56px;font-weight:700}
+.hr{height:1px;width:100%;background:rgba(229,231,235,.12);margin:6px 0}
+
+/* Host controls row */
+.controlsRow{width:100%;display:flex;align-items:stretch;gap:18px}
+.controlBox{flex:1;background:rgba(15,23,42,.35);border:1px solid rgba(229,231,235,.10);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:240px}
+.boxTitle{font-size:.85rem;opacity:.8;letter-spacing:.08em;text-transform:uppercase}
+.boxDivider{width:1px;background:rgba(229,231,235,.14)}
+
+/* Status chips */
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;border:1px solid rgba(229,231,235,.14);background:rgba(15,23,42,.35);font-size:.9rem}
+.dot{width:8px;height:8px;border-radius:999px;background:rgba(229,231,235,.5)}
+.dot.ok{background:#22c55e}
+.dot.warn{background:#f59e0b}
+
+/* responsive: stack on smaller screens */
+@media (max-width: 900px){
+  .card{max-width:520px}
+  .controlsRow{flex-direction:column}
+  .boxDivider{display:none}
+}
