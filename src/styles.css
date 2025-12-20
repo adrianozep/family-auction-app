@@ -14,9 +14,9 @@
 }
 
 *{box-sizing:border-box;font-family:'Inter',sans-serif}
-body{margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh;overflow:hidden}
-.app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:12px;width:100%;overflow:hidden}
-.card{position:relative;overflow:hidden;background:var(--card);padding:clamp(18px,3vw,28px);border-radius:16px;text-align:center;max-width:980px;width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 16px 40px rgba(0,0,0,.35);max-height:calc(100vh - 24px);height:min(980px,calc(100vh - 24px))}
+body{margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh;overflow-y:auto;overflow-x:hidden}
+.app{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;width:100%;overflow:visible}
+.card{position:relative;overflow:visible;background:var(--card);padding:clamp(18px,3vw,28px);border-radius:16px;text-align:center;max-width:980px;width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
 h1,h2,p{margin:0;line-height:1.25}
 h1{font-size:clamp(1.4rem,3.8vw,2.4rem)}
 h2{font-size:clamp(1.1rem,3.2vw,1.8rem)}
@@ -40,8 +40,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .dot.warn{background:var(--warn)}
 
 .card > *{position:relative;z-index:1}
-.themeBackdrop{position:absolute;inset:6px;opacity:.12;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35));z-index:0;overflow:hidden}
-.clipLayer{position:absolute;inset:0}
+.themeBackdrop{position:absolute;inset:-40px;left:50%;transform:translateX(-50%);width:180vw;opacity:.12;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35));z-index:0;overflow:visible}
+.clipLayer{position:absolute;inset:0;width:100%;height:100%;}
 .themeBackdrop .row{justify-content:center;align-content:flex-start}
 .playerGrid{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;width:100%}
 .playerChip{padding:10px 14px;border-radius:14px;background:rgba(99,102,241,.14);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;gap:10px;align-items:center;justify-content:space-between;min-width:200px}
@@ -72,13 +72,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 @media (max-width: 640px){
   .app{padding:8px}
-  .card{padding:18px;max-height:calc(100vh - 16px)}
+  .card{padding:18px}
   .bid{font-size:42px}
   button{width:100%}
 }
 
 @media (max-height: 760px){
-  .card{gap:8px;padding:16px;height:calc(100vh - 12px)}
+  .card{gap:8px;padding:16px}
   .controlBox{min-width:200px}
   .small{font-size:.85rem}
 }
