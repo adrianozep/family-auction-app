@@ -379,9 +379,7 @@ export default function App() {
     }).catch(() => {})
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
-  const safeTitle = encodeURIComponent(gameTitle || 'Auction Game')
-  const joinUrl = roomCode ? `${window.location.origin}/join?room=${roomCode}` : ''
-  const shortJoinUrl = `${window.location.origin}/join`
+  const joinUrl = `${window.location.origin}/join`
 
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
 
@@ -877,16 +875,8 @@ export default function App() {
           <div className="joinSection" style={{ width: '100%' }}>
             <div className="qrWrap">
               <QRCode value={joinUrl} size={140} />
-              <p className="small">Scan to join</p>
-            </div>
-
-            <div className="joinMeta">
-              <p className="small">Join from any device at</p>
-              <a href={shortJoinUrl} target="_blank" rel="noreferrer" className="joinUrl">
-                {shortJoinUrl.replace('https://', '').replace('http://', '')}
-              </a>
-              <p className="small">or enter the room code</p>
-              <div className="roomCodeDisplay">{roomCode}</div>
+              <p className="small">Scan to join, then enter the room code and your name.</p>
+              <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
             </div>
           </div>
 
