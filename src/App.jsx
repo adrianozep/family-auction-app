@@ -285,9 +285,10 @@ export default function App() {
   const lastBidSoundRef = useRef(null)
   const handledLockedBidRef = useRef(null)
   const lastLockedSoundRef = useRef(null)
-      
+
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
+  const [mobileWinningNotice, setMobileWinningNotice] = useState('')
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
@@ -1156,6 +1157,7 @@ export default function App() {
       </div>
     )
     const showLivePlayers = !isGameHost && !isMobile
+    const shouldShowBottomNotice = privateNotice && !isGameHost && (!isMobile || !mobileWinningNotice)
 
   useEffect(() => {
     if (!room) return
@@ -1185,6 +1187,19 @@ export default function App() {
     }
     lastBidSoundRef.current = current
   }, [room?.currentBid, room?.started, room?.roundReady, playHostRaiseTriplet])
+
+  useEffect(() => {
+    if (!isMobile || isGameHost) {
+      setMobileWinningNotice('')
+      return
+    }
+
+    const message = privateNotice?.trim() || ''
+    const isWinningMessage =
+      message.startsWith('✅ You’re currently winning') || message.startsWith('🎉 You won this bid')
+
+    setMobileWinningNotice(isWinningMessage ? message : '')
+  }, [privateNotice, isMobile, isGameHost])
 
     useEffect(() => {
       if (!room) return
@@ -1491,6 +1506,11 @@ export default function App() {
               <strong>${myBalance}</strong>
             </div>
           )}
+          {isMobile && mobileWinningNotice && (
+            <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
+              <span>{mobileWinningNotice}</span>
+            </div>
+          )}
 
           <p className="small" style={{ marginTop: 8 }}>
             Time left: <b>{formatTime(timeLeft)}</b> {paused && timeLeft > 0 ? '(paused)' : ''}
@@ -1511,7 +1531,7 @@ export default function App() {
             </div>
           </div>
 
-          {privateNotice && !isGameHost && (
+          {shouldShowBottomNotice && (
             <p className="small" aria-live="polite" style={{ marginTop: 8 }}>
               {privateNotice}
             </p>
