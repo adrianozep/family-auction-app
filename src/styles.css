@@ -15,11 +15,16 @@
 
 *{box-sizing:border-box;font-family:'Inter',sans-serif}
 body{margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh;overflow-y:auto;overflow-x:hidden}
+body.isFullscreen{overflow:hidden}
 .app{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;width:100%;overflow:visible}
+.app.isFullscreen{align-items:center;padding:clamp(10px,2vw,16px)}
 .card{position:relative;overflow:visible;background:var(--card);padding:clamp(18px,3vw,28px);border-radius:16px;text-align:center;max-width:980px;width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.app.isFullscreen .card{max-height:92vh;overflow:auto;padding:clamp(14px,2vw,22px);gap:10px}
 h1,h2,p{margin:0;line-height:1.25}
 h1{font-size:clamp(1.4rem,3.8vw,2.4rem)}
 h2{font-size:clamp(1.1rem,3.2vw,1.8rem)}
+.app.isFullscreen h1{font-size:clamp(1.25rem,3vw,2rem)}
+.app.isFullscreen h2{font-size:clamp(1rem,2.6vw,1.6rem)}
 input,select{padding:10px 12px;border-radius:10px;border:1px solid rgba(229,231,235,.2);background:rgba(15,23,42,.6);color:var(--text);width:100%}
 button{padding:10px 14px;border:none;border-radius:12px;background:var(--btn);color:#fff;font-weight:600;cursor:pointer;transition:transform .1s ease}
 button:active{transform:scale(.98)}
@@ -63,11 +68,18 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .primaryBidButton{width:100%;font-size:clamp(1.1rem,4vw,1.6rem);padding:clamp(14px,3.5vw,20px);background:linear-gradient(135deg,var(--btn),var(--btnActive));box-shadow:0 12px 28px rgba(0,0,0,.32)}
 .balanceChip{gap:6px;margin-top:6px}
 .qrWrap a{color:var(--text);text-decoration:underline}
+.joinSection{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:4px}
+.qrWrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0 auto;align-self:center}
+.joinMeta{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.joinUrl{font-weight:700;font-size:clamp(1rem,2.4vw,1.3rem)}
+.roomCodeDisplay{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;letter-spacing:.18em;background:rgba(15,23,42,.45);padding:10px 16px;border-radius:12px;border:1px solid rgba(229,231,235,.18);box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.app.isFullscreen .roomCodeDisplay{letter-spacing:.14em;font-size:clamp(1.4rem,3.4vw,2.2rem)}
 
 @media (max-width: 900px){
   .card{max-width:520px}
   .controlsRow{flex-direction:column}
   .boxDivider{display:none}
+  .joinSection{gap:14px}
 }
 
 @media (max-width: 640px){
@@ -81,6 +93,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   .card{gap:8px;padding:16px}
   .controlBox{min-width:200px}
   .small{font-size:.85rem}
+  .joinMeta{gap:4px}
 }
 
 

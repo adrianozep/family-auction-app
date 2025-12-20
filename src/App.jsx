@@ -380,8 +380,20 @@ export default function App() {
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
   const safeTitle = encodeURIComponent(gameTitle || 'Auction Game')
-  const joinUrl = roomCode ? `${window.location.origin}/r/${roomCode}` : ''
+  const joinUrl = roomCode ? `${window.location.origin}/join?room=${roomCode}` : ''
   const shortJoinUrl = `${window.location.origin}/join`
+
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  useEffect(() => {
+    document.body.classList.toggle('isFullscreen', isFullscreen)
+  }, [isFullscreen])
 
   const toggleFullscreen = async () => {
     try {
@@ -812,7 +824,7 @@ export default function App() {
     }
 
     return (
-      <div className="app">
+      <div className={`app${isFullscreen ? ' isFullscreen' : ''}`}>
         <div className="card" style={{ width: 'min(1200px, 100%)' }}>
           <div className="themeBackdrop" aria-hidden="true">
             <ThemeClipArt themeKey={activeThemeKey} />
@@ -862,47 +874,47 @@ export default function App() {
             )}
           </div>
 
-          <div className="row" style={{ alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
-            <div>
-              <p className="small">Room Code</p>
-              <h2>{roomCode}</h2>
-            </div>
-
-            <div className="qrWrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '0 auto', alignSelf: 'center' }}>
-              <QRCode value={joinUrl} size={160} />
+          <div className="joinSection" style={{ width: '100%' }}>
+            <div className="qrWrap">
+              <QRCode value={joinUrl} size={140} />
               <p className="small">Scan to join</p>
-              <p className="small">
-                Prefer entering a code? Go to{' '}
-                <a href={shortJoinUrl} target="_blank" rel="noreferrer">{shortJoinUrl.replace('https://', '').replace('http://', '')}</a>
-              </p>
             </div>
 
-            <div className="row" style={{ gap: 8 }}>
-              {isGameHost && !soundsEnabled && (
-                <button
-                  onClick={async () => {
-                    try {
-                      if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
-                      await beeperRef.current.unlock()
-                      setSoundsEnabled(true)
-                    } catch {}
-                  }}
-                >
-                  Enable Game Sounds
-                </button>
-              )}
-              {isGameHost && soundsEnabled && (
-                <button
-                  onClick={() => {
-                    setSoundsEnabled(false)
-                  }}
-                >
-                  Disable Game Sounds
-                </button>
-              )}
-              {isGameHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
-              <button onClick={toggleFullscreen}>Full Screen</button>
+            <div className="joinMeta">
+              <p className="small">Join from any device at</p>
+              <a href={shortJoinUrl} target="_blank" rel="noreferrer" className="joinUrl">
+                {shortJoinUrl.replace('https://', '').replace('http://', '')}
+              </a>
+              <p className="small">or enter the room code</p>
+              <div className="roomCodeDisplay">{roomCode}</div>
             </div>
+          </div>
+
+          <div className="row" style={{ gap: 8, justifyContent: 'center', width: '100%' }}>
+            {isGameHost && !soundsEnabled && (
+              <button
+                onClick={async () => {
+                  try {
+                    if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
+                    await beeperRef.current.unlock()
+                    setSoundsEnabled(true)
+                  } catch {}
+                }}
+              >
+                Enable Game Sounds
+              </button>
+            )}
+            {isGameHost && soundsEnabled && (
+              <button
+                onClick={() => {
+                  setSoundsEnabled(false)
+                }}
+              >
+                Disable Game Sounds
+              </button>
+            )}
+            {isGameHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
+            <button onClick={toggleFullscreen}>Full Screen</button>
           </div>
 
           <div className="hr" />
