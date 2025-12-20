@@ -1041,7 +1041,7 @@ export default function App() {
         right: players.slice(midpoint),
       }
     }, [players])
-    const showLivePlayers = isGameHost || !isMobile
+    const showLivePlayers = !isGameHost && !isMobile
 
   useEffect(() => {
     if (!room) return
@@ -1049,10 +1049,13 @@ export default function App() {
     const hasStarted = room.started || room.roundReady
 
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
-      if (!isGameHost) setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
+      if (!isGameHost) {
+        setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
+        playBidWhistle(true)
+      }
     }
     previousBidRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost])
+  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playBidWhistle])
 
   useEffect(() => {
     if (!room) return
@@ -1493,7 +1496,27 @@ export default function App() {
                 {livePlayerColumns.left.length > 0 &&
                   livePlayerColumns.left.map((p) => (
                     <div key={p.id} className="playerRailChip">
-                      {p.name || 'Player'}
+                      <div className="playerRailHeader">
+                        <div className="playerRailName">{p.name || 'Player'}</div>
+                        <div className="playerRailBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                      </div>
+                      <div className="playerRailActions">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Custom"
+                          value={customFundInputs[p.id] ?? ''}
+                          onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        />
+                        <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
               </div>
@@ -1508,7 +1531,27 @@ export default function App() {
                 {livePlayerColumns.right.length > 0 &&
                   livePlayerColumns.right.map((p) => (
                     <div key={p.id} className="playerRailChip">
-                      {p.name || 'Player'}
+                      <div className="playerRailHeader">
+                        <div className="playerRailName">{p.name || 'Player'}</div>
+                        <div className="playerRailBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                      </div>
+                      <div className="playerRailActions">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Custom"
+                          value={customFundInputs[p.id] ?? ''}
+                          onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        />
+                        <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
               </div>
