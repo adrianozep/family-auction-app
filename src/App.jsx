@@ -716,7 +716,7 @@ export default function App() {
     })
     if (beeperRef.current && soundsEnabled) {
       try {
-        beeperRef.current.playDoorbell?.()
+        beeperRef.current.playClaps?.()
       } catch {}
     }
   }
@@ -939,6 +939,13 @@ export default function App() {
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
     const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
+    const playersWithBalance = useMemo(
+      () =>
+        players
+          .map((p) => ({ ...p, balance: Number(p.balance ?? room?.startingFunds ?? 0) }))
+          .sort((a, b) => b.balance - a.balance),
+      [players, room?.startingFunds]
+    )
     const showLivePlayers = isGameHost || !isMobile
 
     useEffect(() => {
@@ -1064,19 +1071,16 @@ export default function App() {
     }
 
     if (showWinner) {
-      const playersWithBalance = players
-        .map((p) => ({ ...p, balance: Number(p.balance ?? room?.startingFunds ?? 0) }))
-        .sort((a, b) => b.balance - a.balance)
       return (
         <div className="app scorePage">
           <div className="card scoreCard" style={{ width: 'min(1100px, 100%)' }}>
             <div className="themeBackdrop" aria-hidden="true" />
             <div className="pill">Round {roundNumber}</div>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
-            <p className="small">Timer hit zero — here are the standings.</p>
+            <p className="small">Timer hit zero — here are the winning results and the live scoreboard.</p>
 
             <div className="scoreboard" style={{ marginTop: 10 }}>
-              <div className="boxTitle">Round Results</div>
+              <div className="boxTitle">Winning Results</div>
               <div className="scoreboardRow">
                 <div>
                   <p className="small">Winner</p>
@@ -1091,7 +1095,7 @@ export default function App() {
 
             <div className="scoreList" aria-live="polite">
               <div className="scoreboardRow scoreHeader">
-                <p className="small">Players</p>
+                <p className="small">Scoreboard</p>
                 <div className="scoreboardMeta">
                   <p className="small">Remaining balance</p>
                 </div>

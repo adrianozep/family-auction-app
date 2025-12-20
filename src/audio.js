@@ -58,23 +58,46 @@ export function createCountdownBeeps() {
     thump.stop(ctx.currentTime + 0.24)
   }
 
-  const doorbell = () => {
-    const gain = ctx.createGain()
-    gain.gain.setValueAtTime(Math.max(0, volume), ctx.currentTime)
-    gain.connect(ctx.destination)
+  const claps = () => {
+    const makeClap = (start) => {
+      const duration = 0.28
+      const bufferSize = Math.floor(ctx.sampleRate * duration)
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
 
-    const ding = (freq, start, dur = 0.22) => {
-      const osc = ctx.createOscillator()
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
-      osc.connect(gain)
-      osc.start(ctx.currentTime + start)
-      osc.stop(ctx.currentTime + start + dur)
+      for (let i = 0; i < bufferSize; i += 1) {
+        const decay = Math.pow(1 - i / bufferSize, 3)
+        data[i] = (Math.random() * 2 - 1) * decay
+      }
+
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+
+      const bandpass = ctx.createBiquadFilter()
+      bandpass.type = 'bandpass'
+      bandpass.frequency.value = 1900
+      bandpass.Q.value = 0.9
+
+      const highpass = ctx.createBiquadFilter()
+      highpass.type = 'highpass'
+      highpass.frequency.value = 600
+
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(Math.max(0, volume * 1.3), ctx.currentTime + start)
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration)
+
+      noise.connect(bandpass)
+      bandpass.connect(highpass)
+      highpass.connect(gain)
+      gain.connect(ctx.destination)
+
+      noise.start(ctx.currentTime + start)
+      noise.stop(ctx.currentTime + start + duration)
     }
 
-    ding(880, 0)
-    ding(660, 0.18, 0.26)
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1)
+    makeClap(0)
+    makeClap(0.2)
+    makeClap(0.4)
   }
 
   return {
@@ -91,7 +114,7 @@ export function createCountdownBeeps() {
       const gainMult = isFinal ? 1.4 : 1
       beep(freq, duration, gainMult)
     },
-    playDoorbell: doorbell,
+    playClaps: claps,
     playGunshot: gunshot,
   }
 }
