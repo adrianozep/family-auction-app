@@ -242,7 +242,12 @@ export default function App() {
     if (!roomRef) setLoadingRoom(false)
   }, [roomRef])
 
+  useEffect(() => {
+    setTimerHydrated(false)
+  }, [roomRef])
+
   const [timeLeft, setTimeLeft] = useState(0)
+  const [timerHydrated, setTimerHydrated] = useState(false)
   const [players, setPlayers] = useState([])
 
   // Host inputs
@@ -417,19 +422,23 @@ export default function App() {
     if (!room?.started) {
       const pending = Math.max(0, Math.floor(Number(room?.timer?.pausedRemainingSec ?? room?.timer?.durationSec ?? 0)))
       setTimeLeft(pending)
+      setTimerHydrated(true)
       return
     }
     if (paused) {
       setTimeLeft(pausedRemainingSec)
+      setTimerHydrated(true)
       return
     }
     if (!endAtMs || endAtMs <= 0) {
       setTimeLeft(0)
+      setTimerHydrated(!!endAtMs)
       return
     }
     const tick = () => {
       const msLeft = Math.max(0, endAtMs - nowMs())
       setTimeLeft(Math.ceil(msLeft / 1000))
+      setTimerHydrated(true)
     }
     tick()
     const t = setInterval(tick, 250)
@@ -457,6 +466,7 @@ export default function App() {
 
   const revealWinner = useCallback(async () => {
     if (!roomRef) return
+    if (!timerHydrated) return
     if (timeLeft > 0) return
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
@@ -484,13 +494,14 @@ export default function App() {
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
-  }, [roomCode, roomRef, timeLeft])
+  }, [roomCode, roomRef, timeLeft, timerHydrated])
 
   // Auto reveal winner at 0
   const didAutoRevealRef = useRef(false)
   useEffect(() => {
     if (!room?.started) return
     if (room?.revealedWinner) return
+    if (!timerHydrated) return
     if (timeLeft > 0) {
       didAutoRevealRef.current = false
       return
@@ -498,7 +509,7 @@ export default function App() {
     if (didAutoRevealRef.current) return
     didAutoRevealRef.current = true
     revealWinner()
-  }, [room?.started, room?.revealedWinner, timeLeft, revealWinner])
+  }, [room?.started, room?.revealedWinner, timeLeft, revealWinner, timerHydrated])
 
   const joinUrl = useMemo(() => {
     const url = new URL('/', window.location.origin)
@@ -611,11 +622,12 @@ export default function App() {
     chime(0.62, 1760, 1.3, 5)
   }, [])
 
-  const playBidWhistle = useCallback(async () => {
+  const playBidWhistle = useCallback(async (force = false) => {
     try {
       if (!whistleRef.current) whistleRef.current = createCountdownBeeps()
-      if (isGameHost && !soundsEnabled) return
+      if (isGameHost && !soundsEnabled && !force) return
       await whistleRef.current.unlock?.()
+      whistleRef.current.setVolume?.(1)
       whistleRef.current.playWhistle?.()
     } catch {
       playSparkleSound()
@@ -754,6 +766,7 @@ export default function App() {
     if (!roomRef) return
     setIncrement(v)
     await updateDoc(roomRef, { increment: v })
+    await playBidWhistle(true)
   }
 
   const hostRaiseBid = async () => {
@@ -773,6 +786,7 @@ export default function App() {
         leadingBid: data.leadingBid || null,
       })
     })
+    await playBidWhistle(true)
   }
 
   // Timer
@@ -844,6 +858,13 @@ export default function App() {
     if (!Number.isFinite(delta)) return
     await hostAddFunds(targetPlayerId, delta)
     setCustomFundInputs((prev) => ({ ...prev, [targetPlayerId]: '' }))
+  }
+
+  const hostRemovePlayer = async (targetPlayerId) => {
+    if (!isGameHost || !targetPlayerId) return
+    if (!roomCode) return
+    const pRef = doc(db, 'rooms', roomCode, 'players', targetPlayerId)
+    await deleteDoc(pRef)
   }
 
   const hostNextRound = async () => {
@@ -1184,6 +1205,13 @@ export default function App() {
                           style={{ width: 90 }}
                         />
                         <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
+                          }}
+                        >
+                          Remove
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1262,6 +1290,13 @@ export default function App() {
                             style={{ width: 80 }}
                           />
                           <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
+                            }}
+                          >
+                            Remove
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1309,6 +1344,7 @@ export default function App() {
                 Scoreboard
               </button>
             )}
+            {isGameHost && <button onClick={hostEndGame}>End Game</button>}
             {(isGameHost || !isMobile) && <button onClick={toggleFullscreen}>Full Screen</button>}
           </div>
 
