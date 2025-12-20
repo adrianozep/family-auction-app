@@ -252,9 +252,12 @@ export default function App() {
   // Theme + countdown beeps
   const [themeKey, setThemeKey] = useState('classic')
   const beeperRef = useRef(null)
+  const sparkleRef = useRef(null)
   const [soundsEnabled, setSoundsEnabled] = useState(false)
   const beep10Ref = useRef({ sec: null })
   const initialRoomSyncRef = useRef(false)
+  const previousBidRef = useRef(null)
+  const handledLockedBidRef = useRef(null)
       
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
@@ -507,6 +510,43 @@ export default function App() {
     window.speechSynthesis.speak(phrase)
   }
 
+  const playSparkleSound = async () => {
+    if (typeof window === 'undefined') return
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return
+    if (!sparkleRef.current) {
+      sparkleRef.current = { ctx: new AudioContext() }
+    }
+    const { ctx } = sparkleRef.current
+    if (ctx.state === 'suspended') {
+      try { await ctx.resume() } catch {}
+    }
+
+    const now = ctx.currentTime
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.55, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2)
+    gain.connect(ctx.destination)
+
+    const sparkle = (start, freqStart, freqEnd, duration) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freqStart, now + start)
+      osc.frequency.exponentialRampToValueAtTime(freqEnd, now + start + duration)
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(1, now + start)
+      g.gain.exponentialRampToValueAtTime(0.0001, now + start + duration)
+      osc.connect(g)
+      g.connect(gain)
+      osc.start(now + start)
+      osc.stop(now + start + duration)
+    }
+
+    sparkle(0, 600, 1600, 0.5)
+    sparkle(0.1, 900, 2100, 0.45)
+    sparkle(0.2, 1400, 2600, 0.35)
+  }
+
   // Join player
   const joinRoom = async () => {
     const trimmedName = name.trim()
@@ -651,6 +691,14 @@ export default function App() {
   }
 
   // Timer
+  const hostSetTimerDuration = async () => {
+    if (!isGameHost) return
+    if (!roomRef) return
+    const timerState = buildPausedTimerState(customTime)
+    await updateDoc(roomRef, { timer: timerState })
+    setCustomTime(timerState.durationSec)
+  }
+
   const hostTimerStart = async () => {
     if (!isGameHost) return
     if (!roomRef) return
@@ -816,6 +864,7 @@ export default function App() {
         await addDoc(bidsCol, { playerId, name: result.name, amount: result.amount, ts: serverTimestamp() })
         setPrivateNotice(`✅ You’re currently winning at $${result.amount}`)
         sayBidPlaced()
+        playSparkleSound()
       } else if (result.reason === 'already-claimed') {
         setPrivateNotice('❌ Too slow! That price is locked in. Bid again after the next raise.')
       } else if (result.reason === 'insufficient') {
@@ -850,6 +899,38 @@ export default function App() {
     const you = players.find((p) => p.id === playerId)
     const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
     const showLivePlayers = isGameHost || !isMobile
+
+    useEffect(() => {
+      if (!room) return
+      if (isGameHost) return
+      const current = Number(room.currentBid ?? 0)
+      const hasStarted = room.started || room.roundReady
+      if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
+        setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
+      }
+      previousBidRef.current = current
+    }, [room?.currentBid, room?.started, room?.roundReady, isGameHost])
+
+    useEffect(() => {
+      if (!room) return
+      if (isGameHost) return
+      if (!isMobile) return
+
+      if (!room.currentPriceHasBid) {
+        handledLockedBidRef.current = null
+        return
+      }
+
+      const lockKey = `${room.leadingBid?.playerId ?? 'none'}-${room.leadingBid?.tsMs ?? '0'}-${room.leadingBid?.amount ?? '0'}`
+      if (handledLockedBidRef.current === lockKey) return
+      handledLockedBidRef.current = lockKey
+
+      if (room.leadingBid?.playerId === playerId) {
+        setPrivateNotice(`🎉 You won this bid at $${room.leadingBid?.amount ?? room.currentBid}!`)
+      } else {
+        setPrivateNotice('⏳ Too slow! Wait for the next raise to try again.')
+      }
+    }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
 
     if (joinLanding && !roomCode) {
       return (
@@ -1147,7 +1228,16 @@ export default function App() {
               <div className="controlsRow">
                 <div className="controlBox">
                   <div className="boxTitle">Timer</div>
-                  <input type="number" min={1} max={600} value={customTime} onChange={e => setCustomTime(Number(e.target.value))} />
+                  <div className="row" style={{ gap: 8 }}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={600}
+                      value={customTime}
+                      onChange={e => setCustomTime(Number(e.target.value))}
+                    />
+                    <button onClick={hostSetTimerDuration} disabled={!!room?.started}>Set</button>
+                  </div>
                   <div className="row">
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerPause}>Pause</button>
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
