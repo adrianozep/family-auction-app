@@ -15,6 +15,49 @@ export function createCountdownBeeps() {
     osc.stop(ctx.currentTime + duration)
   }
 
+  const gunshot = () => {
+    const duration = 0.6
+    const bufferSize = Math.floor(ctx.sampleRate * duration)
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+
+    for (let i = 0; i < bufferSize; i += 1) {
+      const decay = Math.pow(1 - i / bufferSize, 2)
+      data[i] = (Math.random() * 2 - 1) * decay
+    }
+
+    const noise = ctx.createBufferSource()
+    noise.buffer = buffer
+
+    const bandpass = ctx.createBiquadFilter()
+    bandpass.type = 'bandpass'
+    bandpass.frequency.value = 1600
+    bandpass.Q.value = 0.8
+
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(Math.max(0, volume * 1.2), ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration)
+
+    noise.connect(bandpass)
+    bandpass.connect(gain)
+    gain.connect(ctx.destination)
+
+    const thump = ctx.createOscillator()
+    thump.type = 'triangle'
+    thump.frequency.setValueAtTime(90, ctx.currentTime)
+    thump.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.18)
+    const thumpGain = ctx.createGain()
+    thumpGain.gain.setValueAtTime(volume, ctx.currentTime)
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.24)
+    thump.connect(thumpGain)
+    thumpGain.connect(ctx.destination)
+
+    noise.start()
+    noise.stop(ctx.currentTime + duration)
+    thump.start()
+    thump.stop(ctx.currentTime + 0.24)
+  }
+
   const doorbell = () => {
     const gain = ctx.createGain()
     gain.gain.setValueAtTime(Math.max(0, volume), ctx.currentTime)
@@ -49,5 +92,6 @@ export function createCountdownBeeps() {
       beep(freq, duration, gainMult)
     },
     playDoorbell: doorbell,
+    playGunshot: gunshot,
   }
 }
