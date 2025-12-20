@@ -430,6 +430,7 @@ export default function App() {
     if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
   }, [isGameHost])
   // Timer computed locally from room.timer
+  const hasTimer = !!room?.timer
   const endAtMs = room?.timer?.endAtMs || 0
   const paused = !!room?.timer?.paused
   const pausedRemainingSec = room?.timer?.pausedRemainingSec || 0
@@ -448,7 +449,7 @@ export default function App() {
     }
     if (!endAtMs || endAtMs <= 0) {
       setTimeLeft(0)
-      setTimerHydrated(!!endAtMs)
+      setTimerHydrated(hasTimer || !!endAtMs)
       return
     }
     const tick = () => {
@@ -459,7 +460,7 @@ export default function App() {
     tick()
     const t = setInterval(tick, 250)
     return () => clearInterval(t)
-  }, [room?.started, paused, pausedRemainingSec, endAtMs])
+  }, [room?.started, paused, pausedRemainingSec, endAtMs, hasTimer])
 
   // Final 10-second countdown beeps (HOST ONLY) — option 1 (every second 10..1)
   useEffect(() => {
