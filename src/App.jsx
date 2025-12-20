@@ -994,7 +994,8 @@ export default function App() {
       tx.update(roomRef, { started: true, roundReady: false, revealedWinner: null, timer: timerState, currentPriceHasBid: false })
     })
     setPrivateNotice('')
-    if (beeperRef.current && soundsEnabled) {
+    if (soundsEnabled) {
+      if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
       try {
         await beeperRef.current.unlock?.()
         beeperRef.current.playGunshot?.()
