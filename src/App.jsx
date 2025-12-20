@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode.react'
 import { db } from './firebase.js'
-import { createBidWhistle, createCountdownBeeps } from './audio.js'
+import { createBidWhistle, createCountdownBeeps, createHostRaiseWhistle } from './audio.js'
 import {
   collection,
   doc,
@@ -227,6 +227,19 @@ export default function App() {
   const [isHost] = useState(!roomFromUrl && !joinLanding)
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 820px)').matches)
 
+  useEffect(() => {
+    const updateScale = () => {
+      const widthScale = window.innerWidth / 1280
+      const heightScale = window.innerHeight / 900
+      const scale = Math.max(0.72, Math.min(1, widthScale, heightScale))
+      document.documentElement.style.setProperty('--ui-scale', scale.toFixed(3))
+    }
+
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
+
   const playerId = useMemo(() => getPlayerId(roomCode), [roomCode])
 
   const [joined, setJoined] = useState(isHost)
@@ -261,6 +274,7 @@ export default function App() {
   const [themeKey, setThemeKey] = useState('classic')
   const beeperRef = useRef(null)
   const whistleRef = useRef(null)
+  const raiseWhistleRef = useRef(null)
   const sparkleRef = useRef(null)
   const [soundsEnabled, setSoundsEnabled] = useState(false)
   const beep10Ref = useRef({ sec: null })
@@ -647,6 +661,22 @@ export default function App() {
     [isGameHost, soundsEnabled, playSparkleSound]
   )
 
+  const playHostRaiseWhistle = useCallback(async () => {
+    const fallback = () => playBidWhistle(true)
+
+    try {
+      if (!raiseWhistleRef.current) raiseWhistleRef.current = createHostRaiseWhistle()
+      await raiseWhistleRef.current.unlock?.()
+      raiseWhistleRef.current.setVolume?.(1)
+      raiseWhistleRef.current.stop?.()
+      raiseWhistleRef.current.play?.()
+    } catch {
+      try {
+        fallback()
+      } catch {}
+    }
+  }, [playBidWhistle])
+
   const playClapCelebration = useCallback(async () => {
     try {
       if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
@@ -799,7 +829,7 @@ export default function App() {
         leadingBid: data.leadingBid || null,
       })
     })
-    await playBidWhistle(true)
+    await playHostRaiseWhistle()
   }
 
   // Timer
