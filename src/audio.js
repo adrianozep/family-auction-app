@@ -153,12 +153,16 @@ export function createCountdownBeeps() {
   }
 }
 
-// Web-audio whistle for bid raises (no samples / royalty-free)
+const BID_WHISTLE_DATA_URL =
+  'data:audio/wav;base64,UklGRjg2AQBXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YRQ2AQAAAGsRVSI/MrFAQE2PV09fgGeKYZaZY3eaf3SHegDcQTsOhkuUN5Lj82Hc8HMuf7ASQzoyYU0Ncl4V2nUDhI+MDfX+bvhssU8uUtcx983+hXwLGk0JgrDdjk64tnprV/a22v3f7C5sVxI63mBLAA3x5I4oBObAcOgh9kAhthxbqhIq2B1OQvtn/rFGA2pPTkC/lyDy4jvuF0+nD6Hx27CPSaXMXpnM4GrkPpUDm3iOCLGI1u21GF2ksPd3w5rMhQt3gSwC+N3xoB06IgSyiH2ZQuNGh5shLq3gyOQgpcTBVdER+BfoMeZPTpDv5wq1RvGlntd+vk/r3wXoooGwFJojTlKZhEc2WcoFhir4E7+i/g8M07CX+S+z2ceIWtlomHsxw+s7okXLbVE4EtMmzgmDbRmm92OoK6mOvn3Et5K3OjK1h2KyqnK2yXNjbjAJmYYeiv1F7XeZCqeNfJiRqS3sY3qmz1h3+RfZ/PmJSdzpS15djcTOaw+YOHjjlqvWlZD42xgTUe6hfGYPDrkHaas6VtX4e9iPBAfJFcIvcl6p20c0t4axpEWtJ4leWUOs8DH1/pXRbtWp1ZO9rnx7wllxu5IJnOpJKtk4/v6UAZIkJrE/'+
+  'mCg6ksG3TwYp9A9tlt9btnowVSkPB+cSDRkTnTR874RlvAk1ZMdUEt56j8frur1O9LuvcOBx+boPaQfqEwjK98DCGowNfclV76+r7sP3bzPOF8I6dybcq2pc/N+4B5rjCjdz4lOWM0A733E1Dy9QzVb/1X+pmWqjR1tVZtpgFtLzG2DZKQQjd7+JUEgZRMzdArK+bCpKDq/tuXIYLUeIMc/R4DBKIXyiH2YUYOBHeMAzZcPfXgZP0hhoEf7c2IikOGaA54NjX3nN1zNueC+oS4bd2F0ekyEe59FVE02JgKTdnPsUb6XueJjFtZdi4zU++OARw9+NBjYuPfeB5AAMohPmAlDgIba8C3bUVzrf+/Bc51aI7An2vw1HCkPTcDQcx6RHYwf07yM112InOD6CjlMChWsPB0jk2Lktfus/I7by0m+/shXwUGk8JDre3dnB02hnhHRoxJrQf5fTBKZ5weSj8E28ZBNpI=' // Generated in-tool sine-sweep whistle
+
+// Web-audio whistle for bid raises (no external samples)
 export function createBidWhistle() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)()
   let volume = 0.85
 
-  const play = () => {
+  const playWebSynthesis = () => {
     const start = ctx.currentTime
 
     const master = ctx.createGain()
@@ -189,6 +193,23 @@ export function createBidWhistle() {
     overtoneGain.connect(master)
     overtone.start(start + 0.04)
     overtone.stop(start + 1.14)
+  }
+
+  const play = async () => {
+    const vol = Math.max(0, Math.min(1, volume))
+    try {
+      await ctx.resume()
+    } catch {}
+
+    try {
+      const el = new Audio(BID_WHISTLE_DATA_URL)
+      el.volume = vol
+      const htmlPlay = el.play()
+      playWebSynthesis()
+      if (htmlPlay?.catch) htmlPlay.catch(() => playWebSynthesis())
+    } catch {
+      playWebSynthesis()
+    }
   }
 
   return {

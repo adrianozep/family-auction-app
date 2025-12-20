@@ -1262,6 +1262,13 @@ export default function App() {
         <div className="themeBackdrop" aria-hidden="true" />
         <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
 
+        {!isGameHost && (you?.name || name) && (
+          <div className="chip selfNameChip" aria-label="Your player name">
+            <span>You’re playing as</span>
+            <strong>{you?.name || name}</strong>
+          </div>
+        )}
+
         {isGameHost && (
           <div className="card" style={{ background: 'var(--card2)' }}>
             <div className="row" style={{ gap: 12 }}>
