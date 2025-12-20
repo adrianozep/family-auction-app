@@ -41,70 +41,105 @@ function getPlayerId(roomCode) {
   return id
 }
 
+function createEmojiBackground({ gradientFrom, gradientTo, emojis, emojiCount = 900 }) {
+  const width = 1600
+  const height = 1600
+  let swarm = ''
+
+  for (let i = 0; i < emojiCount; i += 1) {
+    const emoji = emojis[i % emojis.length]
+    const x = Math.random() * width
+    const y = Math.random() * height
+    const size = 18 + Math.random() * 26
+    const rotation = Math.floor(Math.random() * 360)
+    const opacity = 0.45 + Math.random() * 0.35
+
+    swarm += `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${size.toFixed(2)}" transform="rotate(${rotation} ${x.toFixed(2)} ${y.toFixed(2)})" opacity="${opacity.toFixed(2)}">${emoji}</text>`
+  }
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${gradientFrom}"/><stop offset="100%" stop-color="${gradientTo}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><g font-family="'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif" text-anchor="middle" dominant-baseline="central">${swarm}</g></svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
+
 const THEMES = {
   classic: {
     label: 'Classic Night',
     vars: {
-      bg1: '#1d4ed8',
-      bg2: '#0ea5e9',
-      card: 'rgba(11,18,32,.92)',
+      bg1: '#0b1b44',
+      bg2: '#2b1b63',
+      card: 'rgba(10,14,26,.92)',
       card2: 'rgba(255,255,255,.10)',
-      btn: '#2563eb',
-      btnActive: '#60a5fa',
-      bgImage:
-        "url('https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?auto=format&fit=crop&w=1600&q=80')",
+      btn: '#4338ca',
+      btnActive: '#7c3aed',
+      bgImage: createEmojiBackground({
+        gradientFrom: '#0b1b44',
+        gradientTo: '#2b1b63',
+        emojis: ['⭐️', '🌙', '✨', '🍷', '🍺'],
+      }),
     },
   },
   christmas: {
     label: 'Christmas',
     vars: {
-      bg1: '#0ea5e9',
-      bg2: '#1d4ed8',
-      card: 'rgba(10,17,31,.9)',
+      bg1: '#5a0b0b',
+      bg2: '#d11d1d',
+      card: 'rgba(24,10,10,.92)',
       card2: 'rgba(255,255,255,.12)',
-      btn: '#38bdf8',
-      btnActive: '#22c55e',
-      bgImage:
-        "url('https://images.unsplash.com/photo-1511367466-95c63f0a5a30?auto=format&fit=crop&w=2000&q=80')",
+      btn: '#b91c1c',
+      btnActive: '#16a34a',
+      bgImage: createEmojiBackground({
+        gradientFrom: '#440707',
+        gradientTo: '#d11d1d',
+        emojis: ['🎅', '🦌', '🧝', '❄️', '🔔', '🎄'],
+      }),
     },
   },
   halloween: {
     label: 'Halloween',
     vars: {
-      bg1: '#f97316',
-      bg2: '#a855f7',
-      card: 'rgba(11,18,32,.92)',
+      bg1: '#0f5132',
+      bg2: '#4c1d95',
+      card: 'rgba(13,15,23,.94)',
       card2: 'rgba(255,255,255,.10)',
-      btn: '#a855f7',
-      btnActive: '#fb7185',
-      bgImage:
-        "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80')",
+      btn: '#22c55e',
+      btnActive: '#a855f7',
+      bgImage: createEmojiBackground({
+        gradientFrom: '#0f5132',
+        gradientTo: '#4c1d95',
+        emojis: ['🎃', '💀', '🧙‍♀️', '🌙', '🐈‍⬛', '⚗️', '🧟', '🦇'],
+      }),
     },
   },
   newyear: {
     label: 'New Year',
     vars: {
-      bg1: '#6366f1',
-      bg2: '#22c55e',
-      card: 'rgba(11,18,32,.92)',
+      bg1: '#0f172a',
+      bg2: '#fbbf24',
+      card: 'rgba(10,14,26,.92)',
       card2: 'rgba(255,255,255,.10)',
       btn: '#6366f1',
       btnActive: '#fbbf24',
-      bgImage:
-        "url('https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1600&q=80')",
+      bgImage: createEmojiBackground({
+        gradientFrom: '#0b1220',
+        gradientTo: '#f59e0b',
+        emojis: ['🎆', '🎇', '🥂', '🎉', '🎊', '🥳', '🪩', '⏰'],
+      }),
     },
   },
   'game-night': {
     label: 'Game Night',
     vars: {
-      bg1: '#06b6d4',
-      bg2: '#f43f5e',
+      bg1: '#0ea5e9',
+      bg2: '#a855f7',
       card: 'rgba(11,18,32,.92)',
       card2: 'rgba(255,255,255,.10)',
       btn: '#0ea5e9',
       btnActive: '#f43f5e',
-      bgImage:
-        "url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1600&q=80')",
+      bgImage: createEmojiBackground({
+        gradientFrom: '#0ea5e9',
+        gradientTo: '#a855f7',
+        emojis: ['🎮', '🎲', '🕹️', '🧩', '🏆', '🧃', '⭐️', '🎧'],
+      }),
     },
   },
 }
