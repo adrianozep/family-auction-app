@@ -218,8 +218,9 @@ export default function App() {
   )
 
   const [roomCode, setRoomCode] = useState(() => {
+    const storedRoomCode = typeof localStorage !== 'undefined' ? localStorage.getItem('auction_last_room') : null
     if (roomFromUrl) return roomFromUrl
-    if (joinLanding) return ''
+    if (joinLanding) return storedRoomCode || ''
     return generateRoomCode()
   })
   const [isHost] = useState(!roomFromUrl && !joinLanding)
@@ -229,7 +230,7 @@ export default function App() {
 
   const [joined, setJoined] = useState(isHost)
   const [landingRoomInput, setLandingRoomInput] = useState('')
-  const [name, setName] = useState('')
+  const [name, setName] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem('auction_player_name') : '') || '')
 
   const [room, setRoom] = useState(null)
   const [loadingRoom, setLoadingRoom] = useState(true)
@@ -245,10 +246,11 @@ export default function App() {
 
   // Host inputs
   const [gameTitle, setGameTitle] = useState(titleFromUrl || 'Family Auction')
-  const [bidInput, setBidInput] = useState(50)
+  const [bidInput, setBidInput] = useState(20)
   const [increment, setIncrement] = useState(10)
   const [customTime, setCustomTime] = useState(60)
-  const [startingFunds, setStartingFunds] = useState(500)
+  const [startingFunds, setStartingFunds] = useState(400)
+  const [customFundInputs, setCustomFundInputs] = useState({})
   // Theme + countdown beeps
   const [themeKey, setThemeKey] = useState('classic')
   const beeperRef = useRef(null)
@@ -258,9 +260,20 @@ export default function App() {
   const initialRoomSyncRef = useRef(false)
   const previousBidRef = useRef(null)
   const handledLockedBidRef = useRef(null)
+  const lastLockedSoundRef = useRef(null)
       
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return
+    if (roomCode) localStorage.setItem('auction_last_room', roomCode)
+  }, [roomCode])
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return
+    if (name) localStorage.setItem('auction_player_name', name)
+  }, [name])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 820px)')
@@ -293,13 +306,13 @@ export default function App() {
         theme: 'classic',
         started: false,
         roundReady: false,
-        currentBid: 50,
-        baseBid: 50,
+        currentBid: 20,
+        baseBid: 20,
         increment: 10,
         currentPriceHasBid: false,
         leadingBid: null,
         revealedWinner: null,
-        startingFunds: 500,
+        startingFunds: 400,
         roundNumber: 1,
         timer: {
           durationSec: 60,
@@ -347,6 +360,15 @@ export default function App() {
     return () => unsub()
   }, [roomCode])
 
+  useEffect(() => {
+    if (isHost) return
+    const me = players.find((p) => p.id === playerId)
+    if (me) {
+      if (!joined) setJoined(true)
+      if (me.name && me.name !== name) setName(me.name)
+    }
+  }, [players, playerId, isHost, joined, name])
+
 
   // Keep host inputs in sync (first load)
   useEffect(() => {
@@ -359,8 +381,8 @@ export default function App() {
     if (!initialRoomSyncRef.current) {
       setIncrement(room.increment ?? 10)
       setCustomTime(room.timer?.durationSec ?? 60)
-      setBidInput(room.currentBid ?? 50)
-      setStartingFunds(room.startingFunds ?? 500)
+      setBidInput(room.currentBid ?? 20)
+      setStartingFunds(room.startingFunds ?? 400)
       if (room.title) setGameTitle(room.title)
       if (room.theme) setThemeKey(room.theme)
       initialRoomSyncRef.current = true
@@ -563,7 +585,7 @@ export default function App() {
       const playerSnap = await tx.get(targetRoomRef)
       const roomData = snap.exists() ? snap.data() : {}
       const existing = playerSnap.exists() ? playerSnap.data() : {}
-      const baseFunds = Math.max(0, Number(roomData?.startingFunds ?? room?.startingFunds ?? startingFunds ?? 500))
+      const baseFunds = Math.max(0, Number(roomData?.startingFunds ?? room?.startingFunds ?? startingFunds ?? 400))
       tx.set(
         targetRoomRef,
         {
@@ -575,6 +597,10 @@ export default function App() {
       )
     })
     setJoined(true)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('auction_last_room', trimmedRoomCode)
+      localStorage.setItem('auction_player_name', trimmedName)
+    }
   }
 
     // Host actions
@@ -618,7 +644,7 @@ export default function App() {
       if (!snap.exists()) return
       const data = snap.data()
       const timerState = buildPausedTimerState(customTime || data?.timer?.durationSec || 60)
-      const base = Math.max(0, Number(data.baseBid ?? bidInput ?? 50))
+      const base = Math.max(0, Number(data.baseBid ?? bidInput ?? 20))
       tx.update(roomRef, {
         title: gameTitle || data.title || 'Auction Game',
         theme: themeKey,
@@ -655,7 +681,7 @@ export default function App() {
   const hostResetToBase = async () => {
     if (!isGameHost) return
     if (!roomRef) return
-    const base = Number(room?.baseBid ?? 50)
+    const base = Number(room?.baseBid ?? 20)
     await updateDoc(roomRef, { currentBid: base, currentPriceHasBid: false, revealedWinner: null })
   }
 
@@ -739,16 +765,26 @@ export default function App() {
   }
 
   const hostAddFunds = async (targetPlayerId, delta) => {
-    if (!isGameHost || !targetPlayerId || !room?.revealedWinner) return
+    if (!isGameHost || !targetPlayerId) return
     if (!roomRef) return
+    const change = Number(delta)
+    if (!Number.isFinite(change)) return
     const pRef = doc(db, 'rooms', roomCode, 'players', targetPlayerId)
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(pRef)
       if (!snap.exists()) return
       const current = Number(snap.data()?.balance ?? room?.startingFunds ?? 0)
-      const next = Math.max(0, current + delta)
+      const next = Math.max(0, current + change)
       tx.update(pRef, { balance: next })
     })
+  }
+
+  const hostAddCustomFunds = async (targetPlayerId) => {
+    const raw = customFundInputs?.[targetPlayerId]
+    const delta = Number(raw)
+    if (!Number.isFinite(delta)) return
+    await hostAddFunds(targetPlayerId, delta)
+    setCustomFundInputs((prev) => ({ ...prev, [targetPlayerId]: '' }))
   }
 
   const hostNextRound = async () => {
@@ -759,7 +795,7 @@ export default function App() {
       if (!snap.exists()) return
       const data = snap.data()
       const nextRound = Number(data.roundNumber ?? 1) + 1
-      const base = Number(data.baseBid ?? 50)
+      const base = Number(data.baseBid ?? 20)
       const timerDuration = Number(customTime || data.timer?.durationSec || 60)
       const timerState = buildPausedTimerState(timerDuration)
       tx.update(roomRef, {
@@ -814,8 +850,8 @@ export default function App() {
     const newCode = generateRoomCode()
     setGameTitle('Family Auction')
     setThemeKey('classic')
-    setStartingFunds(500)
-    setBidInput(50)
+    setStartingFunds(400)
+    setBidInput(20)
     setIncrement(10)
     setCustomTime(60)
     setRoom(null)
@@ -866,7 +902,7 @@ export default function App() {
         sayBidPlaced()
         playSparkleSound()
       } else if (result.reason === 'already-claimed') {
-        setPrivateNotice('❌ Too slow! That price is locked in. Bid again after the next raise.')
+        setPrivateNotice('Current bid is locked in. Wait for the next raise to bid again.')
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
       } else if (result.reason === 'no-room') {
@@ -891,7 +927,7 @@ export default function App() {
       : room?.roundReady && !room?.started
         ? stagedStatusText
         : room?.currentPriceHasBid
-          ? 'Current price is locked in. Wait for the next raise to bid again.'
+          ? 'Current bid is locked in. Wait for the next raise to bid again.'
           : 'Waiting for bids'
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const activeThemeKey = room?.theme || themeKey
@@ -928,9 +964,23 @@ export default function App() {
       if (room.leadingBid?.playerId === playerId) {
         setPrivateNotice(`🎉 You won this bid at $${room.leadingBid?.amount ?? room.currentBid}!`)
       } else {
-        setPrivateNotice('⏳ Too slow! Wait for the next raise to try again.')
+        setPrivateNotice('Current bid is locked in. Wait for the next raise to bid again.')
       }
     }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
+
+    useEffect(() => {
+      if (!room) return
+      if (!isGameHost) return
+      if (!room.currentPriceHasBid) {
+        lastLockedSoundRef.current = null
+        return
+      }
+
+      const lockKey = `${room.leadingBid?.playerId ?? 'none'}-${room.leadingBid?.tsMs ?? room.currentBid ?? '0'}`
+      if (lastLockedSoundRef.current === lockKey) return
+      lastLockedSoundRef.current = lockKey
+      playSparkleSound()
+    }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.currentBid, isGameHost])
 
     if (joinLanding && !roomCode) {
       return (
@@ -1054,6 +1104,15 @@ export default function App() {
                         {[10, 25, 50].map((v) => (
                           <button key={v} onClick={() => hostAddFunds(p.id, v)}>+${v}</button>
                         ))}
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Custom"
+                          value={customFundInputs[p.id] ?? ''}
+                          onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                          style={{ width: 90 }}
+                        />
+                        <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
                       </div>
                     )}
                   </div>
@@ -1121,6 +1180,22 @@ export default function App() {
                     <div key={p.id} className="playerChip">
                       <div className="playerChipName">{p.name}</div>
                       <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                      {isGameHost && (
+                        <div className="row fundButtons" style={{ marginTop: 6 }}>
+                          {[10, 25, 50].map((v) => (
+                            <button key={v} onClick={() => hostAddFunds(p.id, v)}>+${v}</button>
+                          ))}
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="Custom"
+                            value={customFundInputs[p.id] ?? ''}
+                            onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                            style={{ width: 80 }}
+                          />
+                          <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1253,9 +1328,9 @@ export default function App() {
                   <input type="number" min={0} value={bidInput} onChange={e => setBidInput(Number(e.target.value))} />
                   <div className="row" style={{ marginTop: 6 }}>
                     <button onClick={hostSetBidBase}>Set</button>
-                    <button onClick={hostResetToBase}>Reset (${Number(room?.baseBid ?? 50)})</button>
+                    <button onClick={hostResetToBase}>Reset (${Number(room?.baseBid ?? 20)})</button>
                   </div>
-                  <p className="small">Saved base: <b>${Number(room?.baseBid ?? 50)}</b></p>
+                  <p className="small">Saved base: <b>${Number(room?.baseBid ?? 20)}</b></p>
                 </div>
 
                 <div className="boxDivider" />
