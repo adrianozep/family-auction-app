@@ -260,6 +260,7 @@ export default function App() {
   const beep10Ref = useRef({ sec: null })
   const initialRoomSyncRef = useRef(false)
   const previousBidRef = useRef(null)
+  const lastBidSoundRef = useRef(null)
   const handledLockedBidRef = useRef(null)
   const lastLockedSoundRef = useRef(null)
       
@@ -537,7 +538,7 @@ export default function App() {
     window.speechSynthesis.speak(phrase)
   }
 
-  const playSparkleSound = async () => {
+  const playSparkleSound = useCallback(async () => {
     if (typeof window === 'undefined') return
     const AudioContext = window.AudioContext || window.webkitAudioContext
     if (!AudioContext) return
@@ -551,8 +552,8 @@ export default function App() {
 
     const now = ctx.currentTime
     const master = ctx.createGain()
-    master.gain.setValueAtTime(1.05, now)
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 2.8)
+    master.gain.setValueAtTime(1.25, now)
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 3)
 
     const shimmer = ctx.createBiquadFilter()
     shimmer.type = 'highpass'
@@ -606,7 +607,7 @@ export default function App() {
     chime(0.32, 880, 1.7, -3)
     chime(0.5, 1318, 1.5, -6)
     chime(0.62, 1760, 1.3, 5)
-  }
+  }, [])
 
   const playClapCelebration = useCallback(async () => {
     try {
@@ -980,6 +981,8 @@ export default function App() {
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
     const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
+    const isCurrentWinningBidder = !!(room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId)
+    const winningBidAmount = Number(room?.leadingBid?.amount ?? room?.currentBid ?? 0)
     const playersWithBalance = useMemo(
       () =>
         players
@@ -989,16 +992,26 @@ export default function App() {
     )
     const showLivePlayers = isGameHost || !isMobile
 
-    useEffect(() => {
-      if (!room) return
-      if (isGameHost) return
-      const current = Number(room.currentBid ?? 0)
-      const hasStarted = room.started || room.roundReady
-      if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
-        setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
-      }
-      previousBidRef.current = current
-    }, [room?.currentBid, room?.started, room?.roundReady, isGameHost])
+  useEffect(() => {
+    if (!room) return
+    const current = Number(room.currentBid ?? 0)
+    const hasStarted = room.started || room.roundReady
+
+    if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
+      if (!isGameHost) setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
+    }
+    previousBidRef.current = current
+  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost])
+
+  useEffect(() => {
+    if (!room) return
+    const current = Number(room.currentBid ?? 0)
+    const hasStarted = room.started || room.roundReady
+    if (lastBidSoundRef.current !== null && current > lastBidSoundRef.current && hasStarted) {
+      playSparkleSound()
+    }
+    lastBidSoundRef.current = current
+  }, [room?.currentBid, room?.started, room?.roundReady, playSparkleSound])
 
     useEffect(() => {
       if (!room) return
@@ -1297,6 +1310,13 @@ export default function App() {
               <span className={"dot " + statusKind} />
               <span>{statusText}</span>
             </div>
+
+            {isCurrentWinningBidder && !isGameHost && (
+              <div className="chip winningChip" aria-live="polite" style={{ marginTop: 8 }}>
+                <span className="dot ok" />
+                <span>You’re currently winning at ${winningBidAmount}</span>
+              </div>
+            )}
 
             {!isGameHost && (
               <div className="chip balanceChip" aria-live="polite">
