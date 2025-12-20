@@ -255,6 +255,7 @@ export default function App() {
   // Theme + countdown beeps
   const [themeKey, setThemeKey] = useState('classic')
   const beeperRef = useRef(null)
+  const whistleRef = useRef(null)
   const sparkleRef = useRef(null)
   const [soundsEnabled, setSoundsEnabled] = useState(false)
   const beep10Ref = useRef({ sec: null })
@@ -456,6 +457,7 @@ export default function App() {
 
   const revealWinner = useCallback(async () => {
     if (!roomRef) return
+    if (timeLeft > 0) return
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
@@ -482,7 +484,7 @@ export default function App() {
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
-  }, [roomCode, roomRef])
+  }, [roomCode, roomRef, timeLeft])
 
   // Auto reveal winner at 0
   const didAutoRevealRef = useRef(false)
@@ -608,6 +610,17 @@ export default function App() {
     chime(0.5, 1318, 1.5, -6)
     chime(0.62, 1760, 1.3, 5)
   }, [])
+
+  const playBidWhistle = useCallback(async () => {
+    try {
+      if (!whistleRef.current) whistleRef.current = createCountdownBeeps()
+      if (isGameHost && !soundsEnabled) return
+      await whistleRef.current.unlock?.()
+      whistleRef.current.playWhistle?.()
+    } catch {
+      playSparkleSound()
+    }
+  }, [isGameHost, soundsEnabled, playSparkleSound])
 
   const playClapCelebration = useCallback(async () => {
     try {
@@ -760,7 +773,6 @@ export default function App() {
         leadingBid: data.leadingBid || null,
       })
     })
-    playSparkleSound()
   }
 
   // Timer
@@ -1008,10 +1020,10 @@ export default function App() {
     const current = Number(room.currentBid ?? 0)
     const hasStarted = room.started || room.roundReady
     if (lastBidSoundRef.current !== null && current > lastBidSoundRef.current && hasStarted) {
-      playSparkleSound()
+      playBidWhistle()
     }
     lastBidSoundRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, playSparkleSound])
+  }, [room?.currentBid, room?.started, room?.roundReady, playBidWhistle])
 
     useEffect(() => {
       if (!room) return
@@ -1293,7 +1305,7 @@ export default function App() {
             {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
             {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
             {isGameHost && (
-              <button onClick={revealWinner} disabled={!room?.started}>
+              <button onClick={revealWinner} disabled={!room?.started || timeLeft > 0} title="Scoreboard unlocks when the timer hits 0">
                 Scoreboard
               </button>
             )}
@@ -1384,9 +1396,9 @@ export default function App() {
                   <div className="row">
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerPause}>Pause</button>
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
-                    <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerEnd}>End</button>
+                    <button disabled={!room?.started || timeLeft > 0} onClick={hostTimerEnd}>End</button>
                   </div>
-                  <p className="small">Remaining: <b>{formatTime(timeLeft)}</b> (tap Start Round to begin)</p>
+                  <p className="small">Remaining: <b>{formatTime(timeLeft)}</b> — rounds finish when the timer hits 0.</p>
                 </div>
 
                 <div className="boxDivider" />
