@@ -1027,20 +1027,48 @@ export default function App() {
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
     const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
-    const playersWithBalance = useMemo(
-      () =>
-        players
-          .map((p) => ({ ...p, balance: Number(p.balance ?? room?.startingFunds ?? 0) }))
-          .sort((a, b) => b.balance - a.balance),
-      [players, room?.startingFunds]
-    )
+    const MAX_PLAYERS_PER_RAIL = 12
     const livePlayerColumns = useMemo(() => {
-      const midpoint = Math.ceil(players.length / 2)
-      return {
-        left: players.slice(0, midpoint),
-        right: players.slice(midpoint),
-      }
+      const left = players.slice(0, MAX_PLAYERS_PER_RAIL)
+      const right = players.slice(MAX_PLAYERS_PER_RAIL)
+      return { left, right }
     }, [players])
+    const renderPlayerRail = (columnPlayers, position) => (
+      <div className={`playerRail ${position}Rail`} aria-label={`Live players ${position} rail`}>
+        <div className="boxTitle">Live Players</div>
+        <div className="playerRailList" aria-live="polite">
+          {columnPlayers.length === 0 && <p className="small">Waiting for players…</p>}
+          {columnPlayers.length > 0 &&
+            columnPlayers.map((p) => (
+              <div key={p.id} className="playerRailChip">
+                <div className="playerRailHeader">
+                  <div className="playerRailName">{p.name || 'Player'}</div>
+                  <div className="playerRailBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                </div>
+                {isGameHost && (
+                  <div className="playerRailActions">
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="Custom"
+                      value={customFundInputs[p.id] ?? ''}
+                      onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                    />
+                    <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+        </div>
+      </div>
+    )
     const showLivePlayers = !isGameHost && !isMobile
 
   useEffect(() => {
@@ -1178,13 +1206,17 @@ export default function App() {
     }
 
     if (showWinner) {
+      const winnerPlayer = players.find((p) => p.id === room?.revealedWinner?.playerId)
+      const winnerBalance = Math.max(0, Math.round(Number(winnerPlayer?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
       return (
-        <div className="app scorePage">
+        <div className={`app scorePage${isFullscreen ? ' isFullscreen' : ''}`}>
+          {renderPlayerRail(livePlayerColumns.left, 'left')}
+
           <div className="card scoreCard" style={{ width: 'min(1100px, 100%)' }}>
             <div className="themeBackdrop" aria-hidden="true" />
             <div className="pill">Round {roundNumber}</div>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
-            <p className="small">Timer hit zero — here are the winning results and the live scoreboard.</p>
+            <p className="small">Timer hit zero — here are the winning results.</p>
 
             <div className="scoreboard" style={{ marginTop: 10 }}>
               <div className="boxTitle">Winning Results</div>
@@ -1198,46 +1230,13 @@ export default function App() {
                   <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
                 </div>
               </div>
-            </div>
-
-            <div className="scoreList" aria-live="polite">
-              <div className="scoreboardRow scoreHeader">
-                <p className="small">Scoreboard</p>
+              <div className="scoreboardRow">
+                <div />
                 <div className="scoreboardMeta">
-                  <p className="small">Remaining balance</p>
+                  <p className="small">Remaining Balance</p>
+                  <div className="scoreboardAmount">${winnerBalance}</div>
                 </div>
               </div>
-              {playersWithBalance.map((p) => (
-                <div key={p.id} className="scoreboardRow playerRow">
-                  <div>
-                    <p className="small">{p.name}</p>
-                    {room?.revealedWinner?.playerId === p.id && <span className="pill">Round winner</span>}
-                  </div>
-                  <div className="scoreboardMeta">
-                    <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
-                    {isGameHost && (
-                      <div className="row fundButtons">
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="Custom"
-                          value={customFundInputs[p.id] ?? ''}
-                          onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                          style={{ width: 90 }}
-                        />
-                        <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
             </div>
 
             <div className="row" style={{ marginTop: 12 }}>
@@ -1252,6 +1251,8 @@ export default function App() {
             </div>
             {isGameHost && <p className="small">Add funds to players after a round, then start the next timer.</p>}
           </div>
+
+          {renderPlayerRail(livePlayerColumns.right, 'right')}
         </div>
       )
     }
@@ -1489,73 +1490,11 @@ export default function App() {
       <div className={`app${isFullscreen ? ' isFullscreen' : ''}`}>
         {isGameHost ? (
           <div className="hostStage">
-            <div className="playerRail leftRail" aria-label="Live players left rail">
-              <div className="boxTitle">Live Players</div>
-              <div className="playerRailList" aria-live="polite">
-                {livePlayerColumns.left.length === 0 && <p className="small">Waiting for players…</p>}
-                {livePlayerColumns.left.length > 0 &&
-                  livePlayerColumns.left.map((p) => (
-                    <div key={p.id} className="playerRailChip">
-                      <div className="playerRailHeader">
-                        <div className="playerRailName">{p.name || 'Player'}</div>
-                        <div className="playerRailBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
-                      </div>
-                      <div className="playerRailActions">
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="Custom"
-                          value={customFundInputs[p.id] ?? ''}
-                          onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                        />
-                        <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
+            {renderPlayerRail(livePlayerColumns.left, 'left')}
 
             {cardContent}
 
-            <div className="playerRail rightRail" aria-label="Live players right rail">
-              <div className="boxTitle">Live Players</div>
-              <div className="playerRailList" aria-live="polite">
-                {livePlayerColumns.right.length === 0 && <p className="small">Waiting for players…</p>}
-                {livePlayerColumns.right.length > 0 &&
-                  livePlayerColumns.right.map((p) => (
-                    <div key={p.id} className="playerRailChip">
-                      <div className="playerRailHeader">
-                        <div className="playerRailName">{p.name || 'Player'}</div>
-                        <div className="playerRailBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
-                      </div>
-                      <div className="playerRailActions">
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="Custom"
-                          value={customFundInputs[p.id] ?? ''}
-                          onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                        />
-                        <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
+            {renderPlayerRail(livePlayerColumns.right, 'right')}
           </div>
         ) : (
           cardContent
