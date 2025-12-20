@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode.react'
 import { db } from './firebase.js'
-import { createBidWhistle, createCountdownBeeps, createHostRaiseWhistle } from './audio.js'
+import { createBidWhistle, createCountdownBeeps, createHostRaiseTriplet, createHostRaiseWhistle } from './audio.js'
 import {
   collection,
   doc,
@@ -231,8 +231,9 @@ export default function App() {
     const updateScale = () => {
       const widthScale = window.innerWidth / 1280
       const heightScale = window.innerHeight / 900
-      const scale = Math.max(0.72, Math.min(1, widthScale, heightScale))
+      const scale = Math.max(0.65, Math.min(1, widthScale, heightScale))
       document.documentElement.style.setProperty('--ui-scale', scale.toFixed(3))
+      document.documentElement.style.setProperty('--viewport-height', `${window.innerHeight}px`)
     }
 
     updateScale()
@@ -275,6 +276,7 @@ export default function App() {
   const beeperRef = useRef(null)
   const whistleRef = useRef(null)
   const raiseWhistleRef = useRef(null)
+  const raiseTripletRef = useRef(null)
   const sparkleRef = useRef(null)
   const [soundsEnabled, setSoundsEnabled] = useState(false)
   const beep10Ref = useRef({ sec: null })
@@ -677,6 +679,22 @@ export default function App() {
     }
   }, [playBidWhistle])
 
+  const playHostRaiseTriplet = useCallback(async () => {
+    const fallback = () => playHostRaiseWhistle()
+
+    try {
+      if (!raiseTripletRef.current) raiseTripletRef.current = createHostRaiseTriplet()
+      await raiseTripletRef.current.unlock?.()
+      raiseTripletRef.current.setVolume?.(1)
+      raiseTripletRef.current.stop?.()
+      await raiseTripletRef.current.play?.()
+    } catch {
+      try {
+        fallback()
+      } catch {}
+    }
+  }, [playHostRaiseWhistle])
+
   const playClapCelebration = useCallback(async () => {
     try {
       if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
@@ -829,7 +847,7 @@ export default function App() {
         leadingBid: data.leadingBid || null,
       })
     })
-    await playHostRaiseWhistle()
+    await playHostRaiseTriplet()
   }
 
   // Timer
@@ -1109,21 +1127,21 @@ export default function App() {
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
       if (!isGameHost) {
         setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
-        playBidWhistle(true)
+        playHostRaiseTriplet()
       }
     }
     previousBidRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playBidWhistle])
+  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
     const current = Number(room.currentBid ?? 0)
     const hasStarted = room.started || room.roundReady
     if (lastBidSoundRef.current !== null && current > lastBidSoundRef.current && hasStarted) {
-      playBidWhistle()
+      playHostRaiseTriplet()
     }
     lastBidSoundRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, playBidWhistle])
+  }, [room?.currentBid, room?.started, room?.roundReady, playHostRaiseTriplet])
 
     useEffect(() => {
       if (!room) return
