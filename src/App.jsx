@@ -1084,7 +1084,11 @@ export default function App() {
 
       if (result.ok) {
         await addDoc(bidsCol, { playerId, name: result.name, amount: result.amount, ts: serverTimestamp() })
-        setPrivateNotice(`✅ You’re currently winning at $${result.amount}`)
+        const winningMessage = `✅ You’re currently winning at $${result.amount}`
+        setPrivateNotice(winningMessage)
+        if (isMobile && !isGameHost) {
+          setMobileWinningNotice(winningMessage)
+        }
         sayBidPlaced()
         playSparkleSound()
       } else if (result.reason === 'already-claimed') {
@@ -1164,7 +1168,8 @@ export default function App() {
       </div>
     )
     const showLivePlayers = !isGameHost && !isMobile
-    const shouldShowBottomNotice = privateNotice && !isGameHost && (!isMobile || !mobileWinningNotice)
+    const shouldShowBottomNotice =
+      privateNotice && !isGameHost && (!isMobile || privateNotice !== mobileWinningNotice)
 
   useEffect(() => {
     if (!room) return
@@ -1178,7 +1183,7 @@ export default function App() {
       }
     }
     previousBidRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, isMobile, playerId, playHostRaiseTriplet])
+  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
@@ -1191,17 +1196,23 @@ export default function App() {
   }, [room?.currentBid, room?.started, room?.roundReady, playHostRaiseTriplet])
 
   useEffect(() => {
-    if (!isMobile || isGameHost) {
+    if (!room || isGameHost || !isMobile) {
       setMobileWinningNotice('')
       return
     }
 
-    const message = privateNotice?.trim() || ''
-    const isWinningMessage =
-      message.startsWith('✅ You’re currently winning') || message.startsWith('🎉 You won this bid')
+    const isWinningLeader = room.currentPriceHasBid && room.leadingBid?.playerId === playerId
 
-    setMobileWinningNotice(isWinningMessage ? message : '')
-  }, [privateNotice, isMobile, isGameHost])
+    if (isWinningLeader) {
+      const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
+      setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
+      return
+    }
+
+    if (room.currentPriceHasBid && room.leadingBid?.playerId) {
+      setMobileWinningNotice('')
+    }
+  }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.amount, room?.currentBid, isMobile, isGameHost, playerId])
 
     useEffect(() => {
       if (!room) return
@@ -1218,7 +1229,9 @@ export default function App() {
       handledLockedBidRef.current = lockKey
 
       if (room.leadingBid?.playerId === playerId) {
-        setPrivateNotice(`🎉 You won this bid at $${room.leadingBid?.amount ?? room.currentBid}!`)
+        const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
+        setPrivateNotice(`🎉 You won this bid at $${amount}!`)
+        setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
       } else {
         setPrivateNotice('⏱️ Too slow! Another player locked in this bid.')
       }
