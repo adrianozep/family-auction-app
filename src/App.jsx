@@ -1003,6 +1003,14 @@ export default function App() {
     }
   }
 
+  const hostStartRoundFromReady = async () => {
+    if (room?.started) return
+    if (!room?.roundReady) {
+      await hostStartGame()
+    }
+    await hostStartRound()
+  }
+
   const hostEndGame = async () => {
     if (!isGameHost) return
     if (!roomRef) return
@@ -1443,8 +1451,7 @@ export default function App() {
               Disable Game Sounds
             </button>
           )}
-          {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
-          {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
+          {isGameHost && !room?.started && <button onClick={hostStartRoundFromReady}>Start Round</button>}
           {isGameHost && (
             <button
               onClick={async () => {
