@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode.react'
 import { db } from './firebase.js'
-import { createCountdownBeeps } from './audio.js'
+import { createBidWhistle, createCountdownBeeps } from './audio.js'
 import {
   collection,
   doc,
@@ -626,51 +626,20 @@ export default function App() {
     async (force = false) => {
       const tryBackupWhistle = () => {
         try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)()
-          const start = ctx.currentTime
-          const master = ctx.createGain()
-          master.gain.setValueAtTime(0.9, start)
-          master.gain.exponentialRampToValueAtTime(0.0001, start + 1.2)
-          master.connect(ctx.destination)
-
-          const body = ctx.createOscillator()
-          body.type = 'square'
-          body.frequency.setValueAtTime(950, start)
-          body.frequency.exponentialRampToValueAtTime(1800, start + 0.5)
-          const bodyGain = ctx.createGain()
-          bodyGain.gain.setValueAtTime(1.1, start)
-          bodyGain.exponentialRampToValueAtTime(0.001, start + 1)
-          body.connect(bodyGain)
-          bodyGain.connect(master)
-          body.start(start)
-          body.stop(start + 1.05)
-
-          const airy = ctx.createOscillator()
-          airy.type = 'triangle'
-          airy.frequency.setValueAtTime(1200, start + 0.02)
-          airy.frequency.exponentialRampToValueAtTime(2600, start + 0.5)
-          const airyGain = ctx.createGain()
-          airyGain.gain.setValueAtTime(0.7, start + 0.02)
-          airyGain.exponentialRampToValueAtTime(0.001, start + 1.1)
-          airy.connect(airyGain)
-          airyGain.connect(master)
-          airy.start(start + 0.02)
-          airy.stop(start + 1.1)
-
-          setTimeout(() => {
-            try { ctx.close() } catch {}
-          }, 1400)
+          if (!whistleRef.current) whistleRef.current = createCountdownBeeps()
+          whistleRef.current.setVolume?.(1)
+          whistleRef.current.playWhistle?.()
         } catch {
           playSparkleSound()
         }
       }
 
       try {
-        if (!whistleRef.current) whistleRef.current = createCountdownBeeps()
+        if (!whistleRef.current) whistleRef.current = createBidWhistle()
         if (isGameHost && !soundsEnabled && !force) return
         await whistleRef.current.unlock?.()
         whistleRef.current.setVolume?.(1)
-        whistleRef.current.playWhistle?.()
+        whistleRef.current.play?.()
       } catch {
         tryBackupWhistle()
       }
@@ -1058,8 +1027,6 @@ export default function App() {
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
     const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
-    const isCurrentWinningBidder = !!(room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId)
-    const winningBidAmount = Number(room?.leadingBid?.amount ?? room?.currentBid ?? 0)
     const playersWithBalance = useMemo(
       () =>
         players
@@ -1107,7 +1074,7 @@ export default function App() {
       if (room.leadingBid?.playerId === playerId) {
         setPrivateNotice(`🎉 You won this bid at $${room.leadingBid?.amount ?? room.currentBid}!`)
       } else {
-        setPrivateNotice('Current bid is locked in. Wait for the next raise to bid again.')
+        setPrivateNotice('⏱️ Too slow! Another player locked in this bid.')
       }
     }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
 
@@ -1402,14 +1369,6 @@ export default function App() {
               <span className={"dot " + statusKind} />
               <span>{statusText}</span>
             </div>
-
-            {isCurrentWinningBidder && !isGameHost && (
-              <div className="chip winningChip" aria-live="polite" style={{ marginTop: 8 }}>
-                <span className="dot ok" />
-                <span>You’re currently winning at ${winningBidAmount}</span>
-              </div>
-            )}
-
             {!isGameHost && (
               <div className="chip balanceChip" aria-live="polite">
                 <span>Remaining funds:</span>

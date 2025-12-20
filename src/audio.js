@@ -152,3 +152,52 @@ export function createCountdownBeeps() {
     playGunshot: gunshot,
   }
 }
+
+// Web-audio whistle for bid raises (no samples / royalty-free)
+export function createBidWhistle() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  let volume = 0.85
+
+  const play = () => {
+    const start = ctx.currentTime
+
+    const master = ctx.createGain()
+    master.gain.setValueAtTime(Math.max(0, volume * 1.2), start)
+    master.gain.exponentialRampToValueAtTime(0.0001, start + 1.1)
+    master.connect(ctx.destination)
+
+    const body = ctx.createOscillator()
+    body.type = 'sawtooth'
+    body.frequency.setValueAtTime(820, start)
+    body.frequency.exponentialRampToValueAtTime(1800, start + 0.5)
+    const bodyGain = ctx.createGain()
+    bodyGain.gain.setValueAtTime(0.9, start)
+    bodyGain.exponentialRampToValueAtTime(0.001, start + 1.05)
+    body.connect(bodyGain)
+    bodyGain.connect(master)
+    body.start(start)
+    body.stop(start + 1.08)
+
+    const overtone = ctx.createOscillator()
+    overtone.type = 'triangle'
+    overtone.frequency.setValueAtTime(1600, start + 0.04)
+    overtone.frequency.exponentialRampToValueAtTime(2600, start + 0.55)
+    const overtoneGain = ctx.createGain()
+    overtoneGain.gain.setValueAtTime(0.65, start + 0.04)
+    overtoneGain.exponentialRampToValueAtTime(0.001, start + 1.12)
+    overtone.connect(overtoneGain)
+    overtoneGain.connect(master)
+    overtone.start(start + 0.04)
+    overtone.stop(start + 1.14)
+  }
+
+  return {
+    async unlock() {
+      if (ctx.state === 'suspended') await ctx.resume()
+    },
+    setVolume(v) {
+      volume = Math.max(0, Math.min(1, Number(v) || 0))
+    },
+    play,
+  }
+}
