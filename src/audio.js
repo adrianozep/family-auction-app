@@ -3,6 +3,39 @@ export function createCountdownBeeps() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)()
   let volume = 0.6
 
+  const whistle = () => {
+    const start = ctx.currentTime
+
+    const master = ctx.createGain()
+    master.gain.setValueAtTime(Math.max(0, volume * 1.6), start)
+    master.gain.exponentialRampToValueAtTime(0.0001, start + 1.4)
+    master.connect(ctx.destination)
+
+    const body = ctx.createOscillator()
+    body.type = 'square'
+    body.frequency.setValueAtTime(900, start)
+    body.frequency.exponentialRampToValueAtTime(1800, start + 0.6)
+    const bodyGain = ctx.createGain()
+    bodyGain.gain.setValueAtTime(1.1, start)
+    bodyGain.exponentialRampToValueAtTime(0.001, start + 1.1)
+    body.connect(bodyGain)
+    bodyGain.connect(master)
+    body.start(start)
+    body.stop(start + 1.2)
+
+    const overtone = ctx.createOscillator()
+    overtone.type = 'sine'
+    overtone.frequency.setValueAtTime(2400, start + 0.05)
+    overtone.frequency.exponentialRampToValueAtTime(3200, start + 0.6)
+    const overtoneGain = ctx.createGain()
+    overtoneGain.gain.setValueAtTime(0.7, start + 0.05)
+    overtoneGain.exponentialRampToValueAtTime(0.001, start + 1.2)
+    overtone.connect(overtoneGain)
+    overtoneGain.connect(master)
+    overtone.start(start + 0.05)
+    overtone.stop(start + 1.3)
+  }
+
   const beep = (freq = 880, duration = 0.12, gainMult = 1) => {
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
@@ -105,6 +138,7 @@ export function createCountdownBeeps() {
     async unlock() {
       if (ctx.state === 'suspended') await ctx.resume()
     },
+    playWhistle: whistle,
     // option 1: beep each second; higher pitch and longer tone at 1 second
     beepFinal(secLeft) {
       const s = Number(secLeft) || 0
