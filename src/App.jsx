@@ -1201,7 +1201,12 @@ export default function App() {
       return
     }
 
-    const isWinningLeader = room.currentPriceHasBid && room.leadingBid?.playerId === playerId
+    if (!room.currentPriceHasBid) {
+      setMobileWinningNotice('')
+      return
+    }
+
+    const isWinningLeader = room.leadingBid?.playerId === playerId
 
     if (isWinningLeader) {
       const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
@@ -1209,7 +1214,7 @@ export default function App() {
       return
     }
 
-    if (room.currentPriceHasBid && room.leadingBid?.playerId) {
+    if (room.leadingBid?.playerId) {
       setMobileWinningNotice('')
     }
   }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.amount, room?.currentBid, isMobile, isGameHost, playerId])
