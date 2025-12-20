@@ -1034,6 +1034,13 @@ export default function App() {
           .sort((a, b) => b.balance - a.balance),
       [players, room?.startingFunds]
     )
+    const livePlayerColumns = useMemo(() => {
+      const midpoint = Math.ceil(players.length / 2)
+      return {
+        left: players.slice(0, midpoint),
+        right: players.slice(midpoint),
+      }
+    }, [players])
     const showLivePlayers = isGameHost || !isMobile
 
   useEffect(() => {
@@ -1246,234 +1253,270 @@ export default function App() {
       )
     }
 
-    return (
-      <div className={`app${isFullscreen ? ' isFullscreen' : ''}`}>
-        <div className="card" style={{ width: 'min(1200px, 100%)' }}>
-          <div className="themeBackdrop" aria-hidden="true" />
-          <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
+    const cardContent = (
+      <div className="card" style={{ width: 'min(1200px, 100%)' }}>
+        <div className="themeBackdrop" aria-hidden="true" />
+        <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
 
+        {isGameHost && (
+          <div className="card" style={{ background: 'var(--card2)' }}>
+            <div className="row" style={{ gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <p className="small">Game Title</p>
+                <input value={gameTitle} onChange={(e) => setGameTitle(e.target.value)} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p className="small">Theme</p>
+                <select value={themeKey} onChange={(e) => setThemeKey(e.target.value)}>
+                  {Object.entries(THEMES).map(([key, meta]) => (
+                    <option key={key} value={key}>{meta.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p className="small">Starting funds per player</p>
+                <input type="number" min={0} value={startingFunds} onChange={(e) => setStartingFunds(Number(e.target.value))} />
+                <p className="small">Applied to new arrivals. Use the button to refill everyone.</p>
+              </div>
+            </div>
+            <div className="row" style={{ marginTop: 10 }}>
+              <button onClick={hostSaveMeta}>Save Settings</button>
+              <button onClick={hostApplyStartingFunds}>Give everyone ${Math.max(0, Math.round(startingFunds))}</button>
+            </div>
+          </div>
+        )}
+
+        {showLivePlayers && (
+          <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start', background: 'var(--card2)' }}>
+            <div className="boxTitle">Live Players ({players.length})</div>
+            {players.length === 0 && <p className="small">Waiting for players to register…</p>}
+            {players.length > 0 && (
+              <div className="playerGrid" aria-live="polite">
+                {players.map((p) => (
+                  <div key={p.id} className="playerChip">
+                    <div className="playerChipName">{p.name}</div>
+                    <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                    {isGameHost && (
+                      <div className="row fundButtons" style={{ marginTop: 6 }}>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Custom"
+                          value={customFundInputs[p.id] ?? ''}
+                          onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                          style={{ width: 80 }}
+                        />
+                        <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="joinSection" style={{ width: '100%' }}>
+          <div className="qrWrap">
+            <QRCode value={joinUrl} size={140} />
+            <p className="small">Scan to open the join page.</p>
+            <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
+          </div>
+        </div>
+
+        <div className="row" style={{ gap: 8, justifyContent: 'center', width: '100%' }}>
+          {isGameHost && !soundsEnabled && (
+            <button
+              onClick={async () => {
+                try {
+                  if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
+                  await beeperRef.current.unlock()
+                  setSoundsEnabled(true)
+                } catch {}
+              }}
+            >
+              Enable Game Sounds
+            </button>
+          )}
+          {isGameHost && soundsEnabled && (
+            <button
+              onClick={() => {
+                setSoundsEnabled(false)
+              }}
+            >
+              Disable Game Sounds
+            </button>
+          )}
+          {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
+          {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
           {isGameHost && (
-            <div className="card" style={{ background: 'var(--card2)' }}>
-              <div className="row" style={{ gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <p className="small">Game Title</p>
-                  <input value={gameTitle} onChange={(e) => setGameTitle(e.target.value)} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p className="small">Theme</p>
-                  <select value={themeKey} onChange={(e) => setThemeKey(e.target.value)}>
-                    {Object.entries(THEMES).map(([key, meta]) => (
-                      <option key={key} value={key}>{meta.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p className="small">Starting funds per player</p>
-                  <input type="number" min={0} value={startingFunds} onChange={(e) => setStartingFunds(Number(e.target.value))} />
-                  <p className="small">Applied to new arrivals. Use the button to refill everyone.</p>
-                </div>
-              </div>
-              <div className="row" style={{ marginTop: 10 }}>
-                <button onClick={hostSaveMeta}>Save Settings</button>
-                <button onClick={hostApplyStartingFunds}>Give everyone ${Math.max(0, Math.round(startingFunds))}</button>
-              </div>
+            <button onClick={revealWinner} disabled={!room?.started || timeLeft > 0} title="Scoreboard unlocks when the timer hits 0">
+              Scoreboard
+            </button>
+          )}
+          {isGameHost && <button onClick={hostEndGame}>End Game</button>}
+          {(isGameHost || !isMobile) && <button onClick={toggleFullscreen}>Full Screen</button>}
+        </div>
+
+        <div className="hr" />
+
+        <div>
+          <p className="small">Current Bid</p>
+          <div className="bid">${currentBid}</div>
+
+          <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
+            <span className={"dot " + statusKind} />
+            <span>{statusText}</span>
+          </div>
+          {!isGameHost && (
+            <div className="chip balanceChip" aria-live="polite">
+              <span>Remaining funds:</span>
+              <strong>${myBalance}</strong>
             </div>
           )}
 
-          {showLivePlayers && (
-            <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start', background: 'var(--card2)' }}>
-              <div className="boxTitle">Live Players ({players.length})</div>
-              {players.length === 0 && <p className="small">Waiting for players to register…</p>}
-              {players.length > 0 && (
-                <div className="playerGrid" aria-live="polite">
-                  {players.map((p) => (
-                    <div key={p.id} className="playerChip">
-                      <div className="playerChipName">{p.name}</div>
-                      <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
-                      {isGameHost && (
-                        <div className="row fundButtons" style={{ marginTop: 6 }}>
-                          <input
-                            type="number"
-                            min={0}
-                            placeholder="Custom"
-                            value={customFundInputs[p.id] ?? ''}
-                            onChange={(e) => setCustomFundInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                            style={{ width: 80 }}
-                          />
-                          <button onClick={() => hostAddCustomFunds(p.id)}>Add</button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Remove ${p.name || 'player'} from the room?`)) hostRemovePlayer(p.id)
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      )}
-                    </div>
+          <p className="small" style={{ marginTop: 8 }}>
+            Time left: <b>{formatTime(timeLeft)}</b> {paused && timeLeft > 0 ? '(paused)' : ''}
+          </p>
+
+          <div className={"barWrap" + (timeLeft > 0 && timeLeft <= 5 ? ' flash' : '')}>
+            <div className="barTrack">
+              <div
+                className="barFill"
+                style={{
+                  width: `${Math.max(0, Math.min(100, Math.round(((timeLeft || 0) / Math.max(1, (room?.timer?.durationSec || 1))) * 100)))}%`,
+                }}
+              />
+            </div>
+            <div className="barMeta small">
+              <span>{formatTime(timeLeft)}</span>
+              <span>{room?.timer?.durationSec ? `${room.timer.durationSec}s` : ''}</span>
+            </div>
+          </div>
+
+          {privateNotice && !isGameHost && (
+            <p className="small" aria-live="polite" style={{ marginTop: 8 }}>
+              {privateNotice}
+            </p>
+          )}
+
+        </div>
+
+        {!isGameHost && room?.started && (
+          <>
+            <div className="hr" />
+            <div className="controlsRow">
+              <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start' }}>
+                <div className="boxTitle">Your Move</div>
+                <button className="primaryBidButton" onClick={playerBid} disabled={timeLeft <= 0}>Bid ${currentBid}</button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {isGameHost && (
+          <>
+            <div className="hr" />
+
+            <div className="controlsRow">
+              <div className="controlBox">
+                <div className="boxTitle">Timer</div>
+                <div className="row" style={{ gap: 8 }}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={600}
+                    value={customTime}
+                    onChange={e => setCustomTime(Number(e.target.value))}
+                  />
+                  <button onClick={hostSetTimerDuration} disabled={!!room?.started}>Set</button>
+                </div>
+                <div className="row">
+                  <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerPause}>Pause</button>
+                  <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
+                  <button disabled={!room?.started || timeLeft > 0} onClick={hostTimerEnd}>End</button>
+                </div>
+                <p className="small">Remaining: <b>{formatTime(timeLeft)}</b> — rounds finish when the timer hits 0.</p>
+              </div>
+
+              <div className="boxDivider" />
+
+              <div className="controlBox">
+                <div className="boxTitle">Bid Setup</div>
+                <input type="number" min={0} value={bidInput} onChange={e => setBidInput(Number(e.target.value))} />
+                <div className="row" style={{ marginTop: 6 }}>
+                  <button onClick={hostSetBidBase}>Set</button>
+                  <button onClick={hostResetToBase}>Reset (${Number(room?.baseBid ?? 20)})</button>
+                </div>
+                <p className="small">Saved base: <b>${Number(room?.baseBid ?? 20)}</b></p>
+              </div>
+
+              <div className="boxDivider" />
+
+              <div className="controlBox">
+                <div className="boxTitle">Raise Bid</div>
+                <div className="row">
+                  {[5, 10, 15, 20].map(v => (
+                    <button
+                      key={v}
+                      onClick={() => hostPickIncrement(v)}
+                      style={{ background: (room?.increment ?? increment) === v ? 'var(--btnActive)' : undefined }}
+                    >
+                      +${v}
+                    </button>
                   ))}
                 </div>
-              )}
+                <button onClick={hostRaiseBid}>Raise +${Number(room?.increment ?? increment ?? 10)}</button>
+                <p className="small">Leader hidden until the round ends.</p>
+              </div>
             </div>
-          )}
+          </>
+        )}
+      </div>
+    )
 
-          <div className="joinSection" style={{ width: '100%' }}>
-            <div className="qrWrap">
-              <QRCode value={joinUrl} size={140} />
-              <p className="small">Scan to open the join page.</p>
-              <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
+    return (
+      <div className={`app${isFullscreen ? ' isFullscreen' : ''}`}>
+        {isGameHost ? (
+          <div className="hostStage">
+            <div className="playerRail leftRail" aria-label="Live players left rail">
+              <div className="boxTitle">Live Players</div>
+              <div className="playerRailList" aria-live="polite">
+                {livePlayerColumns.left.length === 0 && <p className="small">Waiting for players…</p>}
+                {livePlayerColumns.left.length > 0 &&
+                  livePlayerColumns.left.map((p) => (
+                    <div key={p.id} className="playerRailChip">
+                      {p.name || 'Player'}
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {cardContent}
+
+            <div className="playerRail rightRail" aria-label="Live players right rail">
+              <div className="boxTitle">Live Players</div>
+              <div className="playerRailList" aria-live="polite">
+                {livePlayerColumns.right.length === 0 && <p className="small">Waiting for players…</p>}
+                {livePlayerColumns.right.length > 0 &&
+                  livePlayerColumns.right.map((p) => (
+                    <div key={p.id} className="playerRailChip">
+                      {p.name || 'Player'}
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
-
-          <div className="row" style={{ gap: 8, justifyContent: 'center', width: '100%' }}>
-            {isGameHost && !soundsEnabled && (
-              <button
-                onClick={async () => {
-                  try {
-                    if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
-                    await beeperRef.current.unlock()
-                    setSoundsEnabled(true)
-                  } catch {}
-                }}
-              >
-                Enable Game Sounds
-              </button>
-            )}
-            {isGameHost && soundsEnabled && (
-              <button
-                onClick={() => {
-                  setSoundsEnabled(false)
-                }}
-              >
-                Disable Game Sounds
-              </button>
-            )}
-            {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
-            {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
-            {isGameHost && (
-              <button onClick={revealWinner} disabled={!room?.started || timeLeft > 0} title="Scoreboard unlocks when the timer hits 0">
-                Scoreboard
-              </button>
-            )}
-            {isGameHost && <button onClick={hostEndGame}>End Game</button>}
-            {(isGameHost || !isMobile) && <button onClick={toggleFullscreen}>Full Screen</button>}
-          </div>
-
-          <div className="hr" />
-
-          <div>
-            <p className="small">Current Bid</p>
-            <div className="bid">${currentBid}</div>
-
-            <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
-              <span className={"dot " + statusKind} />
-              <span>{statusText}</span>
-            </div>
-            {!isGameHost && (
-              <div className="chip balanceChip" aria-live="polite">
-                <span>Remaining funds:</span>
-                <strong>${myBalance}</strong>
-              </div>
-            )}
-
-            <p className="small" style={{ marginTop: 8 }}>
-              Time left: <b>{formatTime(timeLeft)}</b> {paused && timeLeft > 0 ? '(paused)' : ''}
-            </p>
-
-            <div className={"barWrap" + (timeLeft > 0 && timeLeft <= 5 ? ' flash' : '')}>
-              <div className="barTrack">
-                <div
-                  className="barFill"
-                  style={{
-                    width: `${Math.max(0, Math.min(100, Math.round(((timeLeft || 0) / Math.max(1, (room?.timer?.durationSec || 1))) * 100)))}%`,
-                  }}
-                />
-              </div>
-              <div className="barMeta small">
-                <span>{formatTime(timeLeft)}</span>
-                <span>{room?.timer?.durationSec ? `${room.timer.durationSec}s` : ''}</span>
-              </div>
-            </div>
-
-            {privateNotice && !isGameHost && (
-              <p className="small" aria-live="polite" style={{ marginTop: 8 }}>
-                {privateNotice}
-              </p>
-            )}
-
-          </div>
-
-          {!isGameHost && room?.started && (
-            <>
-              <div className="hr" />
-              <div className="controlsRow">
-                <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start' }}>
-                  <div className="boxTitle">Your Move</div>
-                  <button className="primaryBidButton" onClick={playerBid} disabled={timeLeft <= 0}>Bid ${currentBid}</button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {isGameHost && (
-            <>
-              <div className="hr" />
-
-              <div className="controlsRow">
-                <div className="controlBox">
-                  <div className="boxTitle">Timer</div>
-                  <div className="row" style={{ gap: 8 }}>
-                    <input
-                      type="number"
-                      min={1}
-                      max={600}
-                      value={customTime}
-                      onChange={e => setCustomTime(Number(e.target.value))}
-                    />
-                    <button onClick={hostSetTimerDuration} disabled={!!room?.started}>Set</button>
-                  </div>
-                  <div className="row">
-                    <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerPause}>Pause</button>
-                    <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
-                    <button disabled={!room?.started || timeLeft > 0} onClick={hostTimerEnd}>End</button>
-                  </div>
-                  <p className="small">Remaining: <b>{formatTime(timeLeft)}</b> — rounds finish when the timer hits 0.</p>
-                </div>
-
-                <div className="boxDivider" />
-
-                <div className="controlBox">
-                  <div className="boxTitle">Bid Setup</div>
-                  <input type="number" min={0} value={bidInput} onChange={e => setBidInput(Number(e.target.value))} />
-                  <div className="row" style={{ marginTop: 6 }}>
-                    <button onClick={hostSetBidBase}>Set</button>
-                    <button onClick={hostResetToBase}>Reset (${Number(room?.baseBid ?? 20)})</button>
-                  </div>
-                  <p className="small">Saved base: <b>${Number(room?.baseBid ?? 20)}</b></p>
-                </div>
-
-                <div className="boxDivider" />
-
-                <div className="controlBox">
-                  <div className="boxTitle">Raise Bid</div>
-                  <div className="row">
-                    {[5, 10, 15, 20].map(v => (
-                      <button
-                        key={v}
-                        onClick={() => hostPickIncrement(v)}
-                        style={{ background: (room?.increment ?? increment) === v ? 'var(--btnActive)' : undefined }}
-                      >
-                        +${v}
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={hostRaiseBid}>Raise +${Number(room?.increment ?? increment ?? 10)}</button>
-                  <p className="small">Leader hidden until the round ends.</p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        ) : (
+          cardContent
+        )}
         {!isGameHost && room?.started && !isMobile && (
           <div className="mobileBidBar" aria-live="polite">
             <div className="mobileBidText">
