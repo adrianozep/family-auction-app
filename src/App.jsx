@@ -1164,12 +1164,17 @@ export default function App() {
 
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
       if (!isGameHost) {
-        setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
+        const isCurrentLeader = room?.leadingBid?.playerId === playerId
+        const shouldPreserveWinningNotice = isMobile && isCurrentLeader
+
+        if (!shouldPreserveWinningNotice) {
+          setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
+        }
         playHostRaiseTriplet()
       }
     }
     previousBidRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playHostRaiseTriplet])
+  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, isMobile, playerId, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
