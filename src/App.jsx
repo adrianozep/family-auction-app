@@ -5,6 +5,7 @@ import { createCountdownBeeps } from './audio.js'
 import {
   collection,
   doc,
+  deleteDoc,
   getDoc,
   getDocs,
   onSnapshot,
@@ -41,11 +42,71 @@ function getPlayerId(roomCode) {
 }
 
 const THEMES = {
-  classic: { label:'Classic Night', vars:{ bg1:'#1d4ed8', bg2:'#0ea5e9', card:'rgba(11,18,32,.92)', card2:'rgba(255,255,255,.10)', btn:'#2563eb', btnActive:'#60a5fa' } },
-  christmas:{ label:'Christmas', vars:{ bg1:'#0ea5e9', bg2:'#22c55e', card:'rgba(11,18,32,.92)', card2:'rgba(255,255,255,.10)', btn:'#16a34a', btnActive:'#f97316' } },
-  halloween:{ label:'Halloween', vars:{ bg1:'#f97316', bg2:'#a855f7', card:'rgba(11,18,32,.92)', card2:'rgba(255,255,255,.10)', btn:'#a855f7', btnActive:'#fb7185' } },
-  newyear:{ label:'New Year', vars:{ bg1:'#6366f1', bg2:'#22c55e', card:'rgba(11,18,32,.92)', card2:'rgba(255,255,255,.10)', btn:'#6366f1', btnActive:'#fbbf24' } },
-  'game-night':{ label:'Game Night', vars:{ bg1:'#06b6d4', bg2:'#f43f5e', card:'rgba(11,18,32,.92)', card2:'rgba(255,255,255,.10)', btn:'#0ea5e9', btnActive:'#f43f5e' } },
+  classic: {
+    label: 'Classic Night',
+    vars: {
+      bg1: '#1d4ed8',
+      bg2: '#0ea5e9',
+      card: 'rgba(11,18,32,.92)',
+      card2: 'rgba(255,255,255,.10)',
+      btn: '#2563eb',
+      btnActive: '#60a5fa',
+      bgImage:
+        "url('https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80')",
+    },
+  },
+  christmas: {
+    label: 'Christmas',
+    vars: {
+      bg1: '#0ea5e9',
+      bg2: '#22c55e',
+      card: 'rgba(11,18,32,.92)',
+      card2: 'rgba(255,255,255,.10)',
+      btn: '#16a34a',
+      btnActive: '#f97316',
+      bgImage:
+        "url('https://images.unsplash.com/photo-1482173074468-5a7b83e9661c?auto=format&fit=crop&w=1600&q=80')",
+    },
+  },
+  halloween: {
+    label: 'Halloween',
+    vars: {
+      bg1: '#f97316',
+      bg2: '#a855f7',
+      card: 'rgba(11,18,32,.92)',
+      card2: 'rgba(255,255,255,.10)',
+      btn: '#a855f7',
+      btnActive: '#fb7185',
+      bgImage:
+        "url('https://images.unsplash.com/photo-1504280390368-3971fe2f9304?auto=format&fit=crop&w=1600&q=80')",
+    },
+  },
+  newyear: {
+    label: 'New Year',
+    vars: {
+      bg1: '#6366f1',
+      bg2: '#22c55e',
+      card: 'rgba(11,18,32,.92)',
+      card2: 'rgba(255,255,255,.10)',
+      btn: '#6366f1',
+      btnActive: '#fbbf24',
+      bgImage:
+        "url('https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80')",
+    },
+  },
+  'game-night': {
+    label: 'Game Night',
+    vars: {
+      bg1: '#06b6d4',
+      bg2: '#f43f5e',
+      card: 'rgba(11,18,32,.92)',
+      card2: 'rgba(255,255,255,.10)',
+      btn: '#0ea5e9',
+      btnActive: '#f43f5e',
+      bgImage:
+        "url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1600&q=80')",
+    },
+  },
 }
 
 function Icon({ children, size = 44, label, style = {} }) {
@@ -132,7 +193,13 @@ function ThemeClipArt({ themeKey }) {
 function applyThemeVars(themeKey) {
   const t = THEMES[themeKey] || THEMES.classic
   const root = document.documentElement
-  Object.entries(t.vars).forEach(([k,v]) => root.style.setProperty(`--${k}`, v))
+  Object.entries(t.vars).forEach(([k,v]) => {
+    if (k === 'bgImage') {
+      root.style.setProperty('--bg-image', v)
+    } else {
+      root.style.setProperty(`--${k}`, v)
+    }
+  })
 }
 
 export default function App() {
@@ -203,6 +270,7 @@ export default function App() {
         title: gameTitle || 'Auction Game',
         theme: 'classic',
         started: false,
+        roundReady: false,
         currentBid: 50,
         baseBid: 50,
         increment: 10,
@@ -300,7 +368,8 @@ export default function App() {
 
   useEffect(() => {
     if (!room?.started) {
-      setTimeLeft(0)
+      const pending = Math.max(0, Math.floor(Number(room?.timer?.pausedRemainingSec ?? room?.timer?.durationSec ?? 0)))
+      setTimeLeft(pending)
       return
     }
     if (paused) {
@@ -380,10 +449,8 @@ export default function App() {
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
   const joinUrl = useMemo(() => {
-    const base = new URL(window.location.origin)
-    base.searchParams.set('join', '1')
-    if (roomCode) base.searchParams.set('room', roomCode)
-    return base.toString()
+    if (!roomCode) return new URL(window.location.origin).toString()
+    return new URL(`/r/${roomCode}`, window.location.origin).toString()
   }, [roomCode])
 
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
@@ -449,6 +516,11 @@ export default function App() {
     return { durationSec: duration, endAtMs: end, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() }
   }
 
+  const buildPausedTimerState = (durationSec) => {
+    const duration = Math.max(1, Math.floor(Number(durationSec) || 60))
+    return { durationSec: duration, endAtMs: 0, paused: true, pausedRemainingSec: duration, updatedAt: serverTimestamp() }
+  }
+
   const hostSaveMeta = async () => {
     if (!isGameHost) return
     if (!roomRef) return
@@ -477,15 +549,19 @@ export default function App() {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
       const data = snap.data()
-      const timerState = buildTimerState(customTime || data?.timer?.durationSec || 60)
+      const timerState = buildPausedTimerState(customTime || data?.timer?.durationSec || 60)
+      const base = Math.max(0, Number(data.baseBid ?? bidInput ?? 50))
       tx.update(roomRef, {
         title: gameTitle || data.title || 'Auction Game',
         theme: themeKey,
-        started: true,
+        started: false,
+        roundReady: true,
         revealedWinner: null,
         currentPriceHasBid: false,
         leadingBid: null,
+        currentBid: base,
         timer: timerState,
+        roundNumber: 1,
       })
     })
   }
@@ -608,7 +684,8 @@ export default function App() {
       const data = snap.data()
       const nextRound = Number(data.roundNumber ?? 1) + 1
       const base = Number(data.baseBid ?? 50)
-      const timerState = buildTimerState(data.timer?.durationSec ?? customTime ?? 60)
+      const timerDuration = Number(customTime || data.timer?.durationSec || 60)
+      const timerState = buildPausedTimerState(timerDuration)
       tx.update(roomRef, {
         roundNumber: nextRound,
         revealedWinner: null,
@@ -616,8 +693,23 @@ export default function App() {
         currentPriceHasBid: false,
         currentBid: base,
         timer: timerState,
-        started: true,
+        started: false,
+        roundReady: true,
       })
+    })
+    setPrivateNotice('')
+  }
+
+  const hostStartRound = async () => {
+    if (!isGameHost) return
+    if (!roomRef) return
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(roomRef)
+      if (!snap.exists()) return
+      const data = snap.data()
+      const duration = Number(data.timer?.pausedRemainingSec || data.timer?.durationSec || customTime || 60)
+      const timerState = buildTimerState(duration)
+      tx.update(roomRef, { started: true, roundReady: false, revealedWinner: null, timer: timerState, currentPriceHasBid: false })
     })
     setPrivateNotice('')
   }
@@ -625,19 +717,31 @@ export default function App() {
   const hostEndGame = async () => {
     if (!isGameHost) return
     if (!roomRef) return
-    const base = Number(room?.baseBid ?? 50)
-    const timerState = { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() }
-    await updateDoc(roomRef, {
-      started: false,
-      roundNumber: 1,
-      currentBid: base,
-      baseBid: base,
-      leadingBid: null,
-      revealedWinner: null,
-      currentPriceHasBid: false,
-      timer: timerState,
-    })
+    const playersRef = collection(db, 'rooms', roomCode, 'players')
+    const bidsRef = collection(db, 'rooms', roomCode, 'bids')
+    const [playerSnap, bidsSnap] = await Promise.all([getDocs(playersRef), getDocs(bidsRef)])
+    await Promise.all([
+      ...playerSnap.docs.map((d) => deleteDoc(d.ref)),
+      ...bidsSnap.docs.map((d) => deleteDoc(d.ref)),
+    ])
+
+    try {
+      await deleteDoc(roomRef)
+    } catch {}
+
+    const newCode = generateRoomCode()
+    setGameTitle('Family Auction')
+    setThemeKey('classic')
+    setStartingFunds(500)
+    setBidInput(50)
+    setIncrement(10)
+    setCustomTime(60)
+    setRoom(null)
+    setPlayers([])
+    setLoadingRoom(true)
+    setJoined(true)
     setPrivateNotice('')
+    setRoomCode(newCode)
   }
 
   // Player bid (first tap wins at current price)
@@ -679,7 +783,7 @@ export default function App() {
         setPrivateNotice(`✅ You’re currently winning at $${result.amount}`)
         sayBidPlaced()
       } else if (result.reason === 'already-claimed') {
-        setPrivateNotice(`❌ ${result.name || 'Another player'} already grabbed $${result.amount}. Wait for the next raise.`)
+        setPrivateNotice('❌ Too slow! That price is locked in. Bid again after the next raise.')
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
       } else if (result.reason === 'no-room') {
@@ -693,11 +797,17 @@ export default function App() {
   }
 
     const currentBid = Number(room?.currentBid ?? 0)
-    const lastBidderName = room?.leadingBid?.name
-    const statusText = lastBidderName
-      ? `${lastBidderName} has the latest bid at $${currentBid}`
-      : 'Waiting for bids'
     const showWinner = !!room?.revealedWinner
+    const statusText = showWinner
+      ? room?.revealedWinner?.name
+        ? `${room.revealedWinner.name} won this round at $${room.revealedWinner.amount}`
+        : 'Round finished.'
+      : room?.roundReady && !room?.started
+        ? 'Round is staged. Update settings and tap Start Round when ready.'
+        : room?.currentPriceHasBid
+          ? 'Current price is locked in. Wait for the next raise to bid again.'
+          : 'Waiting for bids'
+    const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const activeThemeKey = room?.theme || themeKey
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
@@ -780,9 +890,7 @@ export default function App() {
       return (
         <div className="app scorePage">
           <div className="card scoreCard" style={{ width: 'min(1100px, 100%)' }}>
-            <div className="themeBackdrop" aria-hidden="true">
-              <ThemeClipArt themeKey={activeThemeKey} />
-            </div>
+            <div className="themeBackdrop" aria-hidden="true" />
             <div className="pill">Round {roundNumber}</div>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
             <p className="small">Timer hit zero — here are the standings.</p>
@@ -845,9 +953,7 @@ export default function App() {
     return (
       <div className={`app${isFullscreen ? ' isFullscreen' : ''}`}>
         <div className="card" style={{ width: 'min(1200px, 100%)' }}>
-          <div className="themeBackdrop" aria-hidden="true">
-            <ThemeClipArt themeKey={activeThemeKey} />
-          </div>
+          <div className="themeBackdrop" aria-hidden="true" />
           <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
 
           {isGameHost && (
@@ -898,6 +1004,8 @@ export default function App() {
               <QRCode value={joinUrl} size={140} />
               <p className="small">scan QR code to join</p>
               <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
+              <a className="joinUrl" href={joinUrl} target="_blank" rel="noreferrer">{joinUrl}</a>
+              <p className="small">Visit the link and enter the code to join the room.</p>
             </div>
           </div>
 
@@ -924,7 +1032,8 @@ export default function App() {
                 Disable Game Sounds
               </button>
             )}
-            {isGameHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
+            {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
+            {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
             <button onClick={toggleFullscreen}>Full Screen</button>
           </div>
 
@@ -935,7 +1044,7 @@ export default function App() {
             <div className="bid">${currentBid}</div>
 
             <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
-              <span className={"dot " + (room?.leadingBid ? 'ok' : 'warn')} />
+              <span className={"dot " + statusKind} />
               <span>{statusText}</span>
             </div>
 
@@ -998,7 +1107,7 @@ export default function App() {
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerEnd}>End</button>
                   </div>
-                  <p className="small">Remaining: <b>{formatTime(timeLeft)}</b> (starts with Start Game / Next Round)</p>
+                  <p className="small">Remaining: <b>{formatTime(timeLeft)}</b> (tap Start Round to begin)</p>
                 </div>
 
                 <div className="boxDivider" />
