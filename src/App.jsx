@@ -483,7 +483,6 @@ export default function App() {
   const revealWinner = useCallback(async () => {
     if (!roomRef) return
     if (!timerHydrated) return
-    if (timeLeft > 0) return
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
@@ -510,7 +509,7 @@ export default function App() {
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
-  }, [roomCode, roomRef, timeLeft, timerHydrated])
+  }, [roomCode, roomRef, timerHydrated])
 
   // Auto reveal winner at 0
   const didAutoRevealRef = useRef(false)
@@ -1446,8 +1445,17 @@ export default function App() {
           {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
           {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
           {isGameHost && (
-            <button onClick={revealWinner} disabled={!room?.started || timeLeft > 0} title="Scoreboard unlocks when the timer hits 0">
-              Scoreboard
+            <button
+              onClick={async () => {
+                if (!room?.started) return
+                await hostTimerEnd()
+                setTimeLeft(0)
+                await revealWinner()
+              }}
+              disabled={!room?.started}
+              title="End the current round and show the winner results"
+            >
+              End Round
             </button>
           )}
           {isGameHost && <button onClick={hostEndGame}>End Game</button>}
