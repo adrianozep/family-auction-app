@@ -456,7 +456,13 @@ export default function App() {
   const didAutoRevealRef = useRef(false)
   useEffect(() => {
     if (!room?.started) return
-    if (timeLeft > 0) {
+    const timer = room?.timer
+    if (!timer) return
+    const remainingSec = timer?.paused
+      ? Number(timer?.pausedRemainingSec ?? 0)
+      : Math.ceil(Math.max(0, Number(timer?.endAtMs ?? 0) - nowMs()) / 1000)
+
+    if (remainingSec > 0) {
       didAutoRevealRef.current = false
       return
     }
@@ -490,7 +496,7 @@ export default function App() {
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
-  }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
+  }, [room?.started, room?.timer?.endAtMs, room?.timer?.pausedRemainingSec, room?.timer?.paused, room?.revealedWinner, roomRef])
 
   const joinUrl = useMemo(() => {
     const url = new URL('/', window.location.origin)
@@ -546,13 +552,13 @@ export default function App() {
 
     const now = ctx.currentTime
     const gain = ctx.createGain()
-    gain.gain.setValueAtTime(0.55, now)
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2)
+    gain.gain.setValueAtTime(0.75, now)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5)
     gain.connect(ctx.destination)
 
-    const sparkle = (start, freqStart, freqEnd, duration) => {
+    const sparkle = (start, freqStart, freqEnd, duration, type = 'sine') => {
       const osc = ctx.createOscillator()
-      osc.type = 'triangle'
+      osc.type = type
       osc.frequency.setValueAtTime(freqStart, now + start)
       osc.frequency.exponentialRampToValueAtTime(freqEnd, now + start + duration)
       const g = ctx.createGain()
@@ -564,9 +570,8 @@ export default function App() {
       osc.stop(now + start + duration)
     }
 
-    sparkle(0, 600, 1600, 0.5)
-    sparkle(0.1, 900, 2100, 0.45)
-    sparkle(0.2, 1400, 2600, 0.35)
+    sparkle(0, 880, 880, 1.25)
+    sparkle(1.2, 587, 587, 1.3)
   }
 
   // Join player
@@ -1101,9 +1106,6 @@ export default function App() {
                     <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
                     {isGameHost && (
                       <div className="row fundButtons">
-                        {[10, 25, 50].map((v) => (
-                          <button key={v} onClick={() => hostAddFunds(p.id, v)}>+${v}</button>
-                        ))}
                         <input
                           type="number"
                           min={0}
@@ -1182,9 +1184,6 @@ export default function App() {
                       <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
                       {isGameHost && (
                         <div className="row fundButtons" style={{ marginTop: 6 }}>
-                          {[10, 25, 50].map((v) => (
-                            <button key={v} onClick={() => hostAddFunds(p.id, v)}>+${v}</button>
-                          ))}
                           <input
                             type="number"
                             min={0}
