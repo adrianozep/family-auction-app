@@ -220,7 +220,8 @@ export default function App() {
   const [roomCode, setRoomCode] = useState(() => {
     const storedRoomCode = typeof localStorage !== 'undefined' ? localStorage.getItem('auction_last_room') : null
     if (roomFromUrl) return roomFromUrl
-    if (joinLanding) return storedRoomCode || ''
+    if (storedRoomCode) return storedRoomCode
+    if (joinLanding) return ''
     return generateRoomCode()
   })
   const [isHost] = useState(!roomFromUrl && !joinLanding)
@@ -549,27 +550,62 @@ export default function App() {
     }
 
     const now = ctx.currentTime
-    const gain = ctx.createGain()
-    gain.gain.setValueAtTime(0.75, now)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5)
-    gain.connect(ctx.destination)
+    const master = ctx.createGain()
+    master.gain.setValueAtTime(1.05, now)
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 2.8)
 
-    const sparkle = (start, freqStart, freqEnd, duration, type = 'sine') => {
+    const shimmer = ctx.createBiquadFilter()
+    shimmer.type = 'highpass'
+    shimmer.frequency.value = 900
+    shimmer.Q.value = 1.1
+    shimmer.connect(master)
+
+    master.connect(ctx.destination)
+
+    const chime = (start, freq, duration = 1.5, detune = 0) => {
       const osc = ctx.createOscillator()
-      osc.type = type
-      osc.frequency.setValueAtTime(freqStart, now + start)
-      osc.frequency.exponentialRampToValueAtTime(freqEnd, now + start + duration)
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, now + start)
+      if (detune) osc.detune.setValueAtTime(detune, now + start)
+
       const g = ctx.createGain()
-      g.gain.setValueAtTime(1, now + start)
+      g.gain.setValueAtTime(1.2, now + start)
       g.gain.exponentialRampToValueAtTime(0.0001, now + start + duration)
-      osc.connect(g)
-      g.connect(gain)
+
+      const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null
+      if (panner) panner.pan.setValueAtTime(Math.random() * 1.2 - 0.6, now + start)
+
+      if (panner) {
+        osc.connect(g)
+        g.connect(panner)
+        panner.connect(shimmer)
+      } else {
+        osc.connect(g)
+        g.connect(shimmer)
+      }
+
       osc.start(now + start)
       osc.stop(now + start + duration)
     }
 
-    sparkle(0, 880, 880, 1.25)
-    sparkle(1.2, 587, 587, 1.3)
+    const airy = ctx.createOscillator()
+    airy.type = 'triangle'
+    airy.frequency.setValueAtTime(420, now)
+    airy.frequency.exponentialRampToValueAtTime(260, now + 1.4)
+    const airyGain = ctx.createGain()
+    airyGain.gain.setValueAtTime(0.18, now)
+    airyGain.linearRampToValueAtTime(0.01, now + 1.6)
+    airy.connect(airyGain)
+    airyGain.connect(shimmer)
+    airy.start(now)
+    airy.stop(now + 1.6)
+
+    chime(0, 1568, 1.6, 6)
+    chime(0.08, 1175, 1.4, -4)
+    chime(0.18, 2093, 1.25, 9)
+    chime(0.32, 880, 1.7, -3)
+    chime(0.5, 1318, 1.5, -6)
+    chime(0.62, 1760, 1.3, 5)
   }
 
   const playClapCelebration = useCallback(async () => {
