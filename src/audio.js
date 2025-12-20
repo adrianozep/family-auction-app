@@ -346,3 +346,55 @@ export function createHostRaiseWhistle() {
     stop,
   }
 }
+
+// Fast triplet beeps for every host raise (commercial-free)
+export function createHostRaiseTriplet() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  let volume = 0.9
+  let active = []
+
+  const clear = () => {
+    active.forEach((node) => {
+      try { node.stop?.(0) } catch {}
+      try { node.disconnect?.() } catch {}
+    })
+    active = []
+  }
+
+  const beep = (start, freq, duration = 0.12, gainMult = 1) => {
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.08, ctx.currentTime + start + duration)
+
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(Math.max(0, volume * gainMult), ctx.currentTime + start)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(ctx.currentTime + start)
+    osc.stop(ctx.currentTime + start + duration + 0.02)
+    active.push(osc)
+  }
+
+  const play = async () => {
+    try { await ctx.resume() } catch {}
+    clear()
+
+    beep(0, 1260, 0.12, 1.15)
+    beep(0.16, 1360, 0.12, 1.1)
+    beep(0.32, 1480, 0.14, 1.05)
+  }
+
+  return {
+    async unlock() {
+      if (ctx.state === 'suspended') await ctx.resume()
+    },
+    setVolume(v) {
+      volume = Math.max(0, Math.min(1, Number(v) || 0))
+    },
+    play,
+    stop: clear,
+  }
+}
