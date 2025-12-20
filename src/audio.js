@@ -15,18 +15,23 @@ export function createCountdownBeeps() {
     osc.stop(ctx.currentTime + duration)
   }
 
-  const whistle = () => {
-    const osc = ctx.createOscillator()
+  const doorbell = () => {
     const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(1500, ctx.currentTime)
-    osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.6)
-    gain.gain.setValueAtTime(Math.max(0, volume * 1.2), ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.05)
-    osc.connect(gain)
+    gain.gain.setValueAtTime(Math.max(0, volume), ctx.currentTime)
     gain.connect(ctx.destination)
-    osc.start()
-    osc.stop(ctx.currentTime + 1.1)
+
+    const ding = (freq, start, dur = 0.22) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
+      osc.connect(gain)
+      osc.start(ctx.currentTime + start)
+      osc.stop(ctx.currentTime + start + dur)
+    }
+
+    ding(880, 0)
+    ding(660, 0.18, 0.26)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1)
   }
 
   return {
@@ -43,6 +48,6 @@ export function createCountdownBeeps() {
       const gainMult = isFinal ? 1.4 : 1
       beep(freq, duration, gainMult)
     },
-    playWhistle: whistle,
+    playDoorbell: doorbell,
   }
 }
