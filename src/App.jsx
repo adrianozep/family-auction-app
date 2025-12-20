@@ -59,13 +59,13 @@ const THEMES = {
     label: 'Christmas',
     vars: {
       bg1: '#0ea5e9',
-      bg2: '#22c55e',
-      card: 'rgba(11,18,32,.92)',
-      card2: 'rgba(255,255,255,.10)',
-      btn: '#16a34a',
-      btnActive: '#f97316',
+      bg2: '#1d4ed8',
+      card: 'rgba(10,17,31,.9)',
+      card2: 'rgba(255,255,255,.12)',
+      btn: '#38bdf8',
+      btnActive: '#22c55e',
       bgImage:
-        "url('https://images.unsplash.com/photo-1482513517159-1b1a89f1c894?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1504198458649-3128b932f49b?auto=format&fit=crop&w=1600&q=80')",
     },
   },
   halloween: {
@@ -449,8 +449,11 @@ export default function App() {
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
   const joinUrl = useMemo(() => {
-    return new URL('/join', window.location.origin).toString()
-  }, [])
+    const url = new URL('/', window.location.origin)
+    url.searchParams.set('join', '1')
+    if (roomCode) url.searchParams.set('room', roomCode)
+    return url.toString()
+  }, [roomCode])
 
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
 
