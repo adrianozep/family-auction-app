@@ -546,6 +546,35 @@ export default function App() {
     document.body.classList.toggle('isFullscreen', isFullscreen)
   }, [isFullscreen])
 
+  const scrollPageByViewport = useCallback((direction = 1) => {
+    const height = window.innerHeight || document.documentElement?.clientHeight || 0
+    if (!height) return
+    window.scrollBy({ top: height * direction, behavior: 'smooth' })
+  }, [])
+
+  useEffect(() => {
+    const handleWheel = (event) => {
+      if (event.ctrlKey || event.metaKey) return
+      if (Math.abs(event.deltaY) < 30) return
+      event.preventDefault()
+      scrollPageByViewport(event.deltaY > 0 ? 1 : -1)
+    }
+
+    const handlePageKey = (event) => {
+      if (event.key === 'PageDown' || event.key === 'PageUp') {
+        event.preventDefault()
+        scrollPageByViewport(event.key === 'PageDown' ? 1 : -1)
+      }
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('keydown', handlePageKey)
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handlePageKey)
+    }
+  }, [scrollPageByViewport])
+
   const toggleFullscreen = async () => {
     try {
       const el = document.documentElement

@@ -37,7 +37,7 @@ body::after{
   z-index:-1;
 }
 body.isFullscreen{overflow:hidden}
-.app{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:calc(clamp(12px,2vw,22px)*var(--ui-scale));width:100%;overflow:visible;max-width:1600px;margin:0 auto}
+.app{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:calc(clamp(12px,2vw,22px)*var(--ui-scale));width:100%;overflow:visible;max-width:1880px;margin:0 auto}
 .app.isFullscreen{align-items:center;padding:calc(clamp(10px,2vw,16px)*var(--ui-scale))}
 .card{position:relative;overflow:visible;background:var(--card);padding:calc(clamp(18px,3vw,28px)*var(--ui-scale));border-radius:16px;text-align:center;max-width:min(1180px,100%);width:100%;display:flex;flex-direction:column;align-items:center;gap:calc(12px*var(--ui-scale));box-shadow:0 16px 40px rgba(0,0,0,.35)}
 .app.isFullscreen .card{padding:calc(clamp(14px,2vw,22px)*var(--ui-scale));gap:calc(10px*var(--ui-scale))}
@@ -75,13 +75,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playerChip{padding:10px 14px;border-radius:14px;background:rgba(99,102,241,.14);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;gap:10px;align-items:center;justify-content:space-between;min-width:200px}
 .playerChipName{font-weight:700}
 .playerChipBalance{font-size:.9rem;opacity:.8}
-.hostStage{display:grid;grid-template-columns:minmax(280px,1fr) minmax(520px,2fr) minmax(280px,1fr);gap:16px;width:100%;justify-content:space-between;align-items:start;min-height:0}
-.hostStage>.card{grid-column:2;max-width:min(1100px,100%);min-width:0}
-.playerRail{max-width:none;min-width:280px;background:var(--card2);border:1px solid rgba(229,231,235,.12);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;backdrop-filter:blur(6px);box-shadow:0 10px 26px rgba(0,0,0,.22);height:100%;min-height:360px}
+.hostStage{display:grid;grid-template-columns:minmax(320px,1.2fr) minmax(560px,1.65fr) minmax(320px,1.2fr);gap:18px;width:100%;justify-content:space-between;align-items:start;min-height:0}
+.hostStage>.card{grid-column:2;max-width:min(1180px,100%);min-width:0}
+.playerRail{max-width:none;min-width:320px;background:var(--card2);border:1px solid rgba(229,231,235,.12);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px;backdrop-filter:blur(6px);box-shadow:0 10px 26px rgba(0,0,0,.22);height:100%;min-height:360px;width:100%}
 .playerRailList{display:flex;flex-direction:column;gap:8px;flex:1;min-height:120px;padding-right:4px}
 .playerRailChip{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:12px;min-height:48px}
 .playerRailHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1;min-width:0}
-.playerRailName{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.playerRailName{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:normal;word-break:break-word}
 .playerRailBalance{font-weight:700;color:#fbbf24;text-shadow:0 6px 12px rgba(0,0,0,.3)}
 .playerRailActions{display:flex;gap:8px;flex-wrap:nowrap;align-items:center}
 .playerRailActions input{flex:1;min-width:140px;max-width:160px}
