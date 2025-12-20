@@ -223,6 +223,7 @@ export default function App() {
     return generateRoomCode()
   })
   const [isHost] = useState(!roomFromUrl && !joinLanding)
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 820px)').matches)
 
   const playerId = useMemo(() => getPlayerId(roomCode), [roomCode])
 
@@ -257,6 +258,24 @@ export default function App() {
       
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 820px)')
+    const handleMobileChange = (event) => setIsMobile(event.matches)
+    if (mq.addEventListener) {
+      mq.addEventListener('change', handleMobileChange)
+    } else {
+      mq.addListener(handleMobileChange)
+    }
+    setIsMobile(mq.matches)
+    return () => {
+      if (mq.removeEventListener) {
+        mq.removeEventListener('change', handleMobileChange)
+      } else {
+        mq.removeListener(handleMobileChange)
+      }
+    }
+  }, [])
 
   // Create room if host (idempotent)
   useEffect(() => {
@@ -813,12 +832,15 @@ export default function App() {
 
     const currentBid = Number(room?.currentBid ?? 0)
     const showWinner = !!room?.revealedWinner
+    const stagedStatusText = isGameHost || !isMobile
+      ? 'Round is staged. Update settings and tap Start Round when ready.'
+      : 'Waiting for the next round to start'
     const statusText = showWinner
       ? room?.revealedWinner?.name
         ? `${room.revealedWinner.name} won this round at $${room.revealedWinner.amount}`
         : 'Round finished.'
       : room?.roundReady && !room?.started
-        ? 'Round is staged. Update settings and tap Start Round when ready.'
+        ? stagedStatusText
         : room?.currentPriceHasBid
           ? 'Current price is locked in. Wait for the next raise to bid again.'
           : 'Waiting for bids'
@@ -827,6 +849,7 @@ export default function App() {
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
     const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
+    const showLivePlayers = isGameHost || !isMobile
 
     if (joinLanding && !roomCode) {
       return (
@@ -965,7 +988,7 @@ export default function App() {
                   <button onClick={hostEndGame}>End Game</button>
                 </>
               )}
-              {!isGameHost && <button onClick={toggleFullscreen}>Full Screen</button>}
+              {!isGameHost && !isMobile && <button onClick={toggleFullscreen}>Full Screen</button>}
             </div>
             {isGameHost && <p className="small">Add funds to players after a round, then start the next timer.</p>}
           </div>
@@ -1007,20 +1030,22 @@ export default function App() {
             </div>
           )}
 
-          <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start', background: 'var(--card2)' }}>
-            <div className="boxTitle">Live Players ({players.length})</div>
-            {players.length === 0 && <p className="small">Waiting for players to register…</p>}
-            {players.length > 0 && (
-              <div className="playerGrid" aria-live="polite">
-                {players.map((p) => (
-                  <div key={p.id} className="playerChip">
-                    <div className="playerChipName">{p.name}</div>
-                    <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {showLivePlayers && (
+            <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start', background: 'var(--card2)' }}>
+              <div className="boxTitle">Live Players ({players.length})</div>
+              {players.length === 0 && <p className="small">Waiting for players to register…</p>}
+              {players.length > 0 && (
+                <div className="playerGrid" aria-live="polite">
+                  {players.map((p) => (
+                    <div key={p.id} className="playerChip">
+                      <div className="playerChipName">{p.name}</div>
+                      <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="joinSection" style={{ width: '100%' }}>
             <div className="qrWrap">
@@ -1055,7 +1080,7 @@ export default function App() {
             )}
             {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
             {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
-            <button onClick={toggleFullscreen}>Full Screen</button>
+            {(isGameHost || !isMobile) && <button onClick={toggleFullscreen}>Full Screen</button>}
           </div>
 
           <div className="hr" />
@@ -1165,7 +1190,7 @@ export default function App() {
             </>
           )}
         </div>
-        {!isGameHost && room?.started && (
+        {!isGameHost && room?.started && !isMobile && (
           <div className="mobileBidBar" aria-live="polite">
             <div className="mobileBidText">
               <p className="small">Tap to claim the current bid</p>
