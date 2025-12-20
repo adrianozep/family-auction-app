@@ -72,9 +72,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playerChip{padding:10px 14px;border-radius:14px;background:rgba(99,102,241,.14);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;gap:10px;align-items:center;justify-content:space-between;min-width:200px}
 .playerChipName{font-weight:700}
 .playerChipBalance{font-size:.9rem;opacity:.8}
-.hostStage{display:flex;gap:12px;width:100%;justify-content:center;align-items:stretch;flex-wrap:wrap}
-.hostStage>.card{flex:1 1 640px;max-width:980px}
-.playerRail{flex:1 1 320px;max-width:400px;min-width:300px;background:var(--card2);border:1px solid rgba(229,231,235,.12);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;backdrop-filter:blur(6px);box-shadow:0 10px 26px rgba(0,0,0,.22)}
+.hostStage{display:flex;gap:16px;width:100%;justify-content:space-between;align-items:stretch;flex-wrap:wrap}
+.hostStage>.card{flex:2 1 680px;max-width:1040px}
+.playerRail{flex:1 1 clamp(320px,28vw,560px);max-width:none;min-width:300px;background:var(--card2);border:1px solid rgba(229,231,235,.12);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;backdrop-filter:blur(6px);box-shadow:0 10px 26px rgba(0,0,0,.22)}
 .playerRailList{display:flex;flex-direction:column;gap:8px;flex:1;min-height:140px;max-height:78vh;overflow:auto;padding-right:4px}
 .playerRailChip{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:12px;min-height:48px}
 .playerRailHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1;min-width:0}
