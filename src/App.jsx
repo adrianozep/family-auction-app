@@ -6,6 +6,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   runTransaction,
   serverTimestamp,
@@ -47,62 +48,70 @@ const THEMES = {
   'game-night':{ label:'Game Night', vars:{ bg1:'#06b6d4', bg2:'#f43f5e', card:'rgba(11,18,32,.92)', card2:'rgba(255,255,255,.10)', btn:'#0ea5e9', btnActive:'#f43f5e' } },
 }
 
-function Icon({ children, size = 44, label }) {
+function Icon({ children, size = 44, label, style = {} }) {
   return (
-    <div title={label} aria-label={label} style={{ width:size, height:size, display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+    <div title={label} aria-label={label} style={{ width:size, height:size, display:'inline-flex', alignItems:'center', justifyContent:'center', ...style }}>
       <svg width={size} height={size} viewBox="0 0 64 64" role="img">{children}</svg>
     </div>
   )
 }
 
 function ThemeClipArt({ themeKey }) {
-  const Row = ({ children }) => <div className="row" style={{ gap:12, marginTop:6, flexWrap:'wrap', justifyContent:'center' }}>{children}</div>
+  const baseSets = {
+    christmas: [
+      <Icon label="Tree"><polygon points="32,6 46,28 18,28" fill="#22c55e"/><polygon points="32,18 52,44 12,44" fill="#16a34a"/><rect x="28" y="44" width="8" height="12" rx="2" fill="#b45309"/><circle cx="24" cy="30" r="3" fill="#fbbf24"/><circle cx="40" cy="38" r="3" fill="#f87171"/><circle cx="32" cy="26" r="3" fill="#60a5fa"/><polygon points="32,4 35,10 42,10 36,14 38,20 32,16 26,20 28,14 22,10 29,10" fill="#fbbf24"/></Icon>,
+      <Icon label="Snowflake"><g stroke="#e0f2fe" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="54"/><line x1="10" y1="32" x2="54" y2="32"/><line x1="16" y1="16" x2="48" y2="48"/><line x1="48" y1="16" x2="16" y2="48"/></g><circle cx="32" cy="32" r="6" fill="#93c5fd" opacity="0.8"/></Icon>,
+      <Icon label="Santa Hat"><path d="M14 40c10-16 22-24 36-20 4 1 6 4 6 8 0 8-10 16-22 16H14z" fill="#ef4444"/><path d="M14 40h38c0 8-6 14-14 14H28c-8 0-14-6-14-14z" fill="#ffffff"/><circle cx="56" cy="28" r="6" fill="#ffffff"/></Icon>,
+      <Icon label="Reindeer"><circle cx="28" cy="34" r="14" fill="#a16207"/><circle cx="22" cy="30" r="3" fill="#111827"/><circle cx="34" cy="30" r="3" fill="#111827"/><circle cx="32" cy="40" r="4" fill="#ef4444"/></Icon>,
+      <Icon label="Lights"><path d="M10 24c10-10 34-10 44 0" stroke="#fbbf24" strokeWidth="5" fill="none" strokeLinecap="round"/><circle cx="18" cy="24" r="5" fill="#22c55e"/><circle cx="28" cy="20" r="5" fill="#60a5fa"/><circle cx="38" cy="20" r="5" fill="#f97316"/><circle cx="48" cy="24" r="5" fill="#f87171"/></Icon>,
+      <Icon label="Gift"><rect x="14" y="26" width="36" height="28" rx="6" fill="#60a5fa"/><rect x="30" y="26" width="4" height="28" fill="#fbbf24"/><rect x="14" y="36" width="36" height="4" fill="#fbbf24"/></Icon>,
+    ],
+    halloween: [
+      <Icon label="Pumpkin"><ellipse cx="32" cy="36" rx="18" ry="16" fill="#f97316"/><rect x="29" y="16" width="6" height="10" rx="2" fill="#22c55e"/></Icon>,
+      <Icon label="Ghost"><path d="M20 50V30c0-10 6-16 12-16s12 6 12 16v20l-6-4-6 4-6-4-6 4z" fill="#e5e7eb"/></Icon>,
+      <Icon label="Bat"><path d="M12 36c8-12 16-12 20 0 4-12 12-12 20 0-8 8-16 12-20 12s-12-4-20-12z" fill="#111827"/></Icon>,
+      <Icon label="Candy"><rect x="18" y="28" width="28" height="18" rx="9" fill="#fb7185"/><polygon points="18,37 10,30 10,44" fill="#a855f7"/><polygon points="46,37 54,30 54,44" fill="#a855f7"/></Icon>,
+      <Icon label="Spider"><circle cx="32" cy="34" r="10" fill="#111827"/><g stroke="#111827" strokeWidth="4" strokeLinecap="round"><line x1="22" y1="34" x2="12" y2="28"/><line x1="42" y1="34" x2="52" y2="28"/></g></Icon>,
+      <Icon label="Moon"><path d="M42 14c-10 2-16 14-10 24 4 8 14 12 22 8-8 10-24 8-32-4-10-14-2-34 20-28z" fill="#fbbf24"/></Icon>,
+    ],
+    newyear: [
+      <Icon label="Firework"><circle cx="32" cy="32" r="6" fill="#fbbf24"/><g stroke="#fbbf24" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="22"/><line x1="10" y1="32" x2="22" y2="32"/><line x1="16" y1="16" x2="24" y2="24"/></g></Icon>,
+      <Icon label="Champagne"><path d="M28 12h8v10c0 6-2 10-4 12-2-2-4-6-4-12V12z" fill="#fbbf24"/></Icon>,
+      <Icon label="Confetti"><circle cx="18" cy="20" r="4" fill="#60a5fa"/><circle cx="46" cy="18" r="4" fill="#22c55e"/><circle cx="40" cy="44" r="4" fill="#fb7185"/></Icon>,
+      <Icon label="Star"><polygon points="32,8 38,24 55,24 41,34 46,50 32,40 18,50 23,34 9,24 26,24" fill="#fbbf24"/></Icon>,
+      <Icon label="Clock"><circle cx="32" cy="32" r="18" fill="#e5e7eb"/><circle cx="32" cy="32" r="14" fill="#0b1220"/></Icon>,
+      <Icon label="Party Hat"><polygon points="32,10 50,52 14,52" fill="#60a5fa"/></Icon>,
+    ],
+    'game-night': [
+      <Icon label="Controller"><rect x="14" y="26" width="36" height="20" rx="10" fill="#0ea5e9"/><circle cx="26" cy="36" r="3" fill="#0b1220"/></Icon>,
+      <Icon label="Dice"><rect x="18" y="18" width="28" height="28" rx="6" fill="#e5e7eb"/><circle cx="26" cy="26" r="3" fill="#0b1220"/></Icon>,
+      <Icon label="Cards"><rect x="18" y="18" width="20" height="28" rx="4" fill="#60a5fa"/><rect x="26" y="22" width="20" height="28" rx="4" fill="#fb7185" opacity="0.95"/></Icon>,
+      <Icon label="Trophy"><path d="M22 18h20v8c0 8-6 14-10 14s-10-6-10-14v-8z" fill="#fbbf24"/></Icon>,
+      <Icon label="Coin"><circle cx="32" cy="32" r="18" fill="#fbbf24"/></Icon>,
+      <Icon label="Megaphone"><path d="M18 34l18-10v20l-18-10z" fill="#f43f5e"/></Icon>,
+    ],
+    classic: [
+      <Icon label="Music"><path d="M22 18h6v26c0 4-3 8-8 8s-8-3-8-8 3-8 8-8c1.4 0 2.8.3 4 .8V18z" fill="#60a5fa"/><path d="M42 14h6v26c0 4-3 8-8 8s-8-3-8-8 3-8 8-8c1.4 0 2.8.3 4 .8V14z" fill="#fbbf24"/></Icon>,
+      <Icon label="Star"><polygon points="32,8 38,24 55,24 41,34 46,50 32,40 18,50 23,34 9,24 26,24" fill="#fbbf24"/></Icon>,
+      <Icon label="Ticket"><rect x="14" y="22" width="36" height="20" rx="6" fill="#60a5fa"/><circle cx="20" cy="32" r="3" fill="#0b1220"/><circle cx="44" cy="32" r="3" fill="#0b1220"/></Icon>,
+      <Icon label="Gavel"><rect x="20" y="24" width="8" height="16" rx="2" fill="#eab308"/><rect x="28" y="18" width="12" height="12" rx="2" fill="#f97316"/></Icon>,
+    ],
+  }
 
-  if (themeKey === 'christmas') return (
-    <Row>
-      <Icon label="Tree"><polygon points="32,6 46,28 18,28" fill="#22c55e"/><polygon points="32,18 52,44 12,44" fill="#16a34a"/><rect x="28" y="44" width="8" height="12" rx="2" fill="#b45309"/><circle cx="24" cy="30" r="3" fill="#fbbf24"/><circle cx="40" cy="38" r="3" fill="#f87171"/><circle cx="32" cy="26" r="3" fill="#60a5fa"/><polygon points="32,4 35,10 42,10 36,14 38,20 32,16 26,20 28,14 22,10 29,10" fill="#fbbf24"/></Icon>
-      <Icon label="Snowflake"><g stroke="#e0f2fe" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="54"/><line x1="10" y1="32" x2="54" y2="32"/><line x1="16" y1="16" x2="48" y2="48"/><line x1="48" y1="16" x2="16" y2="48"/></g><circle cx="32" cy="32" r="6" fill="#93c5fd" opacity="0.8"/></Icon>
-      <Icon label="Santa Hat"><path d="M14 40c10-16 22-24 36-20 4 1 6 4 6 8 0 8-10 16-22 16H14z" fill="#ef4444"/><path d="M14 40h38c0 8-6 14-14 14H28c-8 0-14-6-14-14z" fill="#ffffff"/><circle cx="56" cy="28" r="6" fill="#ffffff"/></Icon>
-      <Icon label="Reindeer"><circle cx="28" cy="34" r="14" fill="#a16207"/><circle cx="22" cy="30" r="3" fill="#111827"/><circle cx="34" cy="30" r="3" fill="#111827"/><circle cx="32" cy="40" r="4" fill="#ef4444"/></Icon>
-      <Icon label="Lights"><path d="M10 24c10-10 34-10 44 0" stroke="#fbbf24" strokeWidth="5" fill="none" strokeLinecap="round"/><circle cx="18" cy="24" r="5" fill="#22c55e"/><circle cx="28" cy="20" r="5" fill="#60a5fa"/><circle cx="38" cy="20" r="5" fill="#f97316"/><circle cx="48" cy="24" r="5" fill="#f87171"/></Icon>
-      <Icon label="Gift"><rect x="14" y="26" width="36" height="28" rx="6" fill="#60a5fa"/><rect x="30" y="26" width="4" height="28" fill="#fbbf24"/><rect x="14" y="36" width="36" height="4" fill="#fbbf24"/></Icon>
-    </Row>
-  )
+  const pool = baseSets[themeKey] || baseSets.classic
+  const dense = useMemo(() => {
+    const items = []
+    const total = 160
+    for (let i = 0; i < total; i += 1) {
+      const base = pool[i % pool.length]
+      const size = 26 + (i % 8) * 2
+      const rotation = (i * 17) % 360
+      items.push(React.cloneElement(base, { key: `${themeKey}-${i}`, size, style: { transform: `rotate(${rotation}deg)` } }))
+    }
+    return items
+  }, [pool, themeKey])
 
-  if (themeKey === 'halloween') return (
-    <Row>
-      <Icon label="Pumpkin"><ellipse cx="32" cy="36" rx="18" ry="16" fill="#f97316"/><rect x="29" y="16" width="6" height="10" rx="2" fill="#22c55e"/></Icon>
-      <Icon label="Ghost"><path d="M20 50V30c0-10 6-16 12-16s12 6 12 16v20l-6-4-6 4-6-4-6 4z" fill="#e5e7eb"/></Icon>
-      <Icon label="Bat"><path d="M12 36c8-12 16-12 20 0 4-12 12-12 20 0-8 8-16 12-20 12s-12-4-20-12z" fill="#111827"/></Icon>
-      <Icon label="Candy"><rect x="18" y="28" width="28" height="18" rx="9" fill="#fb7185"/><polygon points="18,37 10,30 10,44" fill="#a855f7"/><polygon points="46,37 54,30 54,44" fill="#a855f7"/></Icon>
-      <Icon label="Spider"><circle cx="32" cy="34" r="10" fill="#111827"/><g stroke="#111827" strokeWidth="4" strokeLinecap="round"><line x1="22" y1="34" x2="12" y2="28"/><line x1="42" y1="34" x2="52" y2="28"/></g></Icon>
-      <Icon label="Moon"><path d="M42 14c-10 2-16 14-10 24 4 8 14 12 22 8-8 10-24 8-32-4-10-14-2-34 20-28z" fill="#fbbf24"/></Icon>
-    </Row>
-  )
-
-  if (themeKey === 'newyear') return (
-    <Row>
-      <Icon label="Firework"><circle cx="32" cy="32" r="6" fill="#fbbf24"/><g stroke="#fbbf24" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="22"/><line x1="10" y1="32" x2="22" y2="32"/><line x1="16" y1="16" x2="24" y2="24"/></g></Icon>
-      <Icon label="Champagne"><path d="M28 12h8v10c0 6-2 10-4 12-2-2-4-6-4-12V12z" fill="#fbbf24"/></Icon>
-      <Icon label="Confetti"><circle cx="18" cy="20" r="4" fill="#60a5fa"/><circle cx="46" cy="18" r="4" fill="#22c55e"/><circle cx="40" cy="44" r="4" fill="#fb7185"/></Icon>
-      <Icon label="Star"><polygon points="32,8 38,24 55,24 41,34 46,50 32,40 18,50 23,34 9,24 26,24" fill="#fbbf24"/></Icon>
-      <Icon label="Clock"><circle cx="32" cy="32" r="18" fill="#e5e7eb"/><circle cx="32" cy="32" r="14" fill="#0b1220"/></Icon>
-      <Icon label="Party Hat"><polygon points="32,10 50,52 14,52" fill="#60a5fa"/></Icon>
-    </Row>
-  )
-
-  if (themeKey === 'game-night') return (
-    <Row>
-      <Icon label="Controller"><rect x="14" y="26" width="36" height="20" rx="10" fill="#0ea5e9"/><circle cx="26" cy="36" r="3" fill="#0b1220"/></Icon>
-      <Icon label="Dice"><rect x="18" y="18" width="28" height="28" rx="6" fill="#e5e7eb"/><circle cx="26" cy="26" r="3" fill="#0b1220"/></Icon>
-      <Icon label="Cards"><rect x="18" y="18" width="20" height="28" rx="4" fill="#60a5fa"/><rect x="26" y="22" width="20" height="28" rx="4" fill="#fb7185" opacity="0.95"/></Icon>
-      <Icon label="Trophy"><path d="M22 18h20v8c0 8-6 14-10 14s-10-6-10-14v-8z" fill="#fbbf24"/></Icon>
-      <Icon label="Coin"><circle cx="32" cy="32" r="18" fill="#fbbf24"/></Icon>
-      <Icon label="Megaphone"><path d="M18 34l18-10v20l-18-10z" fill="#f43f5e"/></Icon>
-    </Row>
-  )
-
-  return null
+  return <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap', justifyContent: 'center' }}>{dense}</div>
 }
 
 
@@ -138,6 +147,7 @@ export default function App() {
   const [bidInput, setBidInput] = useState(50)
   const [increment, setIncrement] = useState(10)
   const [customTime, setCustomTime] = useState(60)
+  const [startingFunds, setStartingFunds] = useState(500)
   // Theme + countdown beeps
   const [themeKey, setThemeKey] = useState('classic')
   const beeperRef = useRef(null)
@@ -164,6 +174,8 @@ export default function App() {
         currentPriceHasBid: false,
         leadingBid: null,
         revealedWinner: null,
+        startingFunds: 500,
+        roundNumber: 1,
         timer: {
           durationSec: 60,
           endAtMs: 0,
@@ -215,6 +227,7 @@ export default function App() {
     setIncrement(room.increment ?? 10)
     setCustomTime(room.timer?.durationSec ?? 60)
     setBidInput(room.currentBid ?? 50)
+    setStartingFunds(room.startingFunds ?? 500)
     if (!isHost && room.title) setGameTitle(room.title)
     if (room.theme) setThemeKey(room.theme)
   }, [room, isHost])
@@ -293,9 +306,22 @@ export default function App() {
       if (data.revealedWinner) return
 
       const leading = data.leadingBid || null
-      const winner = leading
-        ? { name: leading.name, amount: leading.amount, ts: serverTimestamp() }
-        : { name: 'No winner', amount: 0, ts: serverTimestamp() }
+      let winner
+
+      if (leading) {
+        winner = { name: leading.name, amount: leading.amount, playerId: leading.playerId, ts: serverTimestamp() }
+        if (leading.playerId) {
+          const pRef = doc(db, 'rooms', roomCode, 'players', leading.playerId)
+          const pSnap = await tx.get(pRef)
+          const starting = Number(data.startingFunds ?? 0)
+          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
+          const deduction = Number(leading.amount || 0)
+          const newBalance = Math.max(0, balance - deduction)
+          tx.set(pRef, { balance: newBalance }, { merge: true })
+        }
+      } else {
+        winner = { name: 'No winner', amount: 0, ts: serverTimestamp() }
+      }
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
@@ -315,12 +341,35 @@ export default function App() {
     } catch {}
   }
 
+  const sayBidPlaced = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    const phrase = new SpeechSynthesisUtterance('bid placed')
+    phrase.rate = 1
+    phrase.pitch = 1
+    phrase.volume = 0.9
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(phrase)
+  }
+
   // Join player
   const joinRoom = async () => {
     const trimmed = name.trim()
     if (!trimmed) return
     const pRef = doc(db, 'rooms', roomCode, 'players', playerId)
-    await setDoc(pRef, { name: trimmed, joinedAt: serverTimestamp() }, { merge: true })
+    const baseFunds = Math.max(0, Number(room?.startingFunds ?? startingFunds ?? 500))
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(pRef)
+      const existing = snap.exists() ? snap.data() : {}
+      tx.set(
+        pRef,
+        {
+          name: trimmed,
+          joinedAt: serverTimestamp(),
+          balance: existing?.balance ?? baseFunds,
+        },
+        { merge: true }
+      )
+    })
     setJoined(true)
   }
 
@@ -330,7 +379,18 @@ export default function App() {
     await updateDoc(roomRef, {
       title: gameTitle || 'Auction Game',
       theme: themeKey,
+      startingFunds: Math.max(0, Number(startingFunds) || 0),
     })
+  }
+
+  const hostApplyStartingFunds = async () => {
+    if (!isGameHost) return
+    const base = Math.max(0, Number(startingFunds) || 0)
+    setStartingFunds(base)
+    await updateDoc(roomRef, { startingFunds: base })
+    const playersRef = collection(db, 'rooms', roomCode, 'players')
+    const snap = await getDocs(playersRef)
+    await Promise.all(snap.docs.map((p) => setDoc(p.ref, { balance: base }, { merge: true })))
   }
 
   const hostStartGame = async () => {
@@ -394,7 +454,7 @@ export default function App() {
     await updateDoc(roomRef, { currentBid: next, currentPriceHasBid: false, revealedWinner: null })
     if (beeperRef.current && beepsReady) {
       try {
-        beeperRef.current.playWhistle?.()
+        beeperRef.current.playDoorbell?.()
       } catch {}
     }
   }
@@ -406,6 +466,8 @@ export default function App() {
     const end = nowMs() + duration * 1000
     await updateDoc(roomRef, {
       timer: { durationSec: duration, endAtMs: end, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
+      currentPriceHasBid: false,
+      leadingBid: null,
       revealedWinner: null,
     })
   }
@@ -432,6 +494,38 @@ export default function App() {
     await updateDoc(roomRef, {
       timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
     })
+  }
+
+  const hostAddFunds = async (targetPlayerId, delta) => {
+    if (!isGameHost || !targetPlayerId || !room?.revealedWinner) return
+    const pRef = doc(db, 'rooms', roomCode, 'players', targetPlayerId)
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(pRef)
+      if (!snap.exists()) return
+      const current = Number(snap.data()?.balance ?? room?.startingFunds ?? 0)
+      const next = Math.max(0, current + delta)
+      tx.update(pRef, { balance: next })
+    })
+  }
+
+  const hostNextRound = async () => {
+    if (!isGameHost) return
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(roomRef)
+      if (!snap.exists()) return
+      const data = snap.data()
+      const nextRound = Number(data.roundNumber ?? 1) + 1
+      const base = Number(data.baseBid ?? 50)
+      tx.update(roomRef, {
+        roundNumber: nextRound,
+        revealedWinner: null,
+        leadingBid: null,
+        currentPriceHasBid: false,
+        currentBid: base,
+        timer: { durationSec: Number(data.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
+      })
+    })
+    setPrivateNotice('')
   }
 
   const hostEndGame = async () => {
@@ -471,6 +565,7 @@ export default function App() {
       if (result.ok) {
         await addDoc(bidsCol, { playerId, name: result.name, amount: result.amount, ts: serverTimestamp() })
         setPrivateNotice(`✅ You’re currently winning at $${result.amount}`)
+        sayBidPlaced()
       } else {
         setPrivateNotice(`❌ Too late — someone already bid first at $${result.amount ?? (room?.currentBid ?? '')}`)
       }
@@ -481,10 +576,11 @@ export default function App() {
 
     const currentBid = Number(room?.currentBid ?? 0)
     const statusText = room?.currentPriceHasBid
-      ? `First bid locked by ${room?.leadingBid?.name || 'player'}`
+      ? 'First bid locked — winner reveals when the timer ends'
       : 'Waiting for first bid'
     const showWinner = !!room?.revealedWinner
     const activeThemeKey = room?.theme || themeKey
+    const roundNumber = Number(room?.roundNumber ?? 1)
 
     if (loadingRoom) {
       return (
@@ -523,6 +619,67 @@ export default function App() {
       )
     }
 
+    if (showWinner) {
+      const playersWithBalance = players
+        .map((p) => ({ ...p, balance: Number(p.balance ?? room?.startingFunds ?? 0) }))
+        .sort((a, b) => b.balance - a.balance)
+
+      return (
+        <div className="app scorePage">
+          <div className="card scoreCard" style={{ width: 'min(1100px, 100%)' }}>
+            <div className="themeBackdrop" aria-hidden="true">
+              <ThemeClipArt themeKey={activeThemeKey} />
+            </div>
+            <div className="pill">Round {roundNumber}</div>
+            <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
+            <p className="small">Timer hit zero — here are the standings.</p>
+
+            <div className="scoreboard" style={{ marginTop: 10 }}>
+              <div className="boxTitle">Round Results</div>
+              <div className="scoreboardRow">
+                <div>
+                  <p className="small">Winner</p>
+                  <h2>{room.revealedWinner?.name}</h2>
+                </div>
+                <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
+              </div>
+              <p className="small">Only the winning bidder is deducted automatically.</p>
+            </div>
+
+            <div className="scoreList" aria-live="polite">
+              {playersWithBalance.map((p) => (
+                <div key={p.id} className="scoreboardRow playerRow">
+                  <div>
+                    <p className="small">{p.name}</p>
+                    {room?.revealedWinner?.playerId === p.id && <span className="pill">Round winner</span>}
+                  </div>
+                  <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
+                  {isGameHost && (
+                    <div className="row fundButtons">
+                      {[10, 25, 50].map((v) => (
+                        <button key={v} onClick={() => hostAddFunds(p.id, v)}>+${v}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="row" style={{ marginTop: 12 }}>
+              {isGameHost && (
+                <>
+                  <button onClick={hostNextRound}>Next Round</button>
+                  <button onClick={toggleFullscreen}>Full Screen</button>
+                </>
+              )}
+              {!isGameHost && <button onClick={toggleFullscreen}>Full Screen</button>}
+            </div>
+            {isGameHost && <p className="small">Add funds to players after a round, then start the next timer.</p>}
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="app">
         <div className="card" style={{ width: 'min(1200px, 100%)' }}>
@@ -546,9 +703,15 @@ export default function App() {
                     ))}
                   </select>
                 </div>
+                <div style={{ flex: 1 }}>
+                  <p className="small">Starting funds per player</p>
+                  <input type="number" min={0} value={startingFunds} onChange={(e) => setStartingFunds(Number(e.target.value))} />
+                  <p className="small">Applied to new arrivals. Use the button to refill everyone.</p>
+                </div>
               </div>
               <div className="row" style={{ marginTop: 10 }}>
                 <button onClick={hostSaveMeta}>Save Settings</button>
+                <button onClick={hostApplyStartingFunds}>Give everyone ${Math.max(0, Math.round(startingFunds))}</button>
               </div>
             </div>
           )}
@@ -636,22 +799,6 @@ export default function App() {
               </p>
             )}
 
-            {showWinner && (
-              <>
-                <div className="hr" />
-                <div className="scoreboard">
-                  <div className="boxTitle">Round Results</div>
-                  <div className="scoreboardRow">
-                    <div>
-                      <p className="small">Winner</p>
-                      <h2>{room.revealedWinner?.name}</h2>
-                    </div>
-                    <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
-                  </div>
-                  <p className="small">Scoreboard stays visible after each round for everyone.</p>
-                </div>
-              </>
-            )}
           </div>
 
           {!isGameHost && room?.started && (
@@ -711,7 +858,7 @@ export default function App() {
                     ))}
                   </div>
                   <button onClick={hostRaiseBid}>Raise +${Number(room?.increment ?? increment ?? 10)}</button>
-                  <p className="small">Leader (hidden): <b>{room?.leadingBid?.name || '—'}</b></p>
+                  <p className="small">Leader hidden until the round ends.</p>
                 </div>
               </div>
             </>
