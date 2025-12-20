@@ -528,7 +528,17 @@ export default function App() {
     const inc = Number(room?.increment ?? increment ?? 10)
     const base = Number(room?.baseBid ?? 0)
     const next = Math.max(base, Number(room?.currentBid ?? 0) + inc)
-    await updateDoc(roomRef, { currentBid: next, currentPriceHasBid: false, revealedWinner: null })
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(roomRef)
+      if (!snap.exists()) return
+      const data = snap.data()
+      tx.update(roomRef, {
+        currentBid: next,
+        currentPriceHasBid: false,
+        revealedWinner: null,
+        leadingBid: data.leadingBid || null,
+      })
+    })
     if (beeperRef.current && soundsEnabled) {
       try {
         beeperRef.current.playDoorbell?.()
@@ -654,6 +664,9 @@ export default function App() {
         const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
         if (balance < current) return { ok:false, reason:'insufficient', amount: current, balance }
 
+        const alreadyClaimed = data.currentPriceHasBid && Number(data.leadingBid?.amount ?? 0) === current
+        if (alreadyClaimed) return { ok:false, reason:'already-claimed', amount: current, name: data.leadingBid?.name }
+
         const previousBidTs = Number(data.leadingBid?.tsMs ?? 0)
         const tsMs = Math.max(bidMoment, previousBidTs + 1)
         const leading = { playerId, name: pName, amount: current, ts: serverTimestamp(), tsMs }
@@ -665,6 +678,8 @@ export default function App() {
         await addDoc(bidsCol, { playerId, name: result.name, amount: result.amount, ts: serverTimestamp() })
         setPrivateNotice(`✅ You’re currently winning at $${result.amount}`)
         sayBidPlaced()
+      } else if (result.reason === 'already-claimed') {
+        setPrivateNotice(`❌ ${result.name || 'Another player'} already grabbed $${result.amount}. Wait for the next raise.`)
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
       } else if (result.reason === 'no-room') {
@@ -785,7 +800,8 @@ export default function App() {
                 Bid: <b>${room.revealedWinner?.amount}</b> • Remaining after deduction:{' '}
                 <b>${Math.max(0, Math.round(winnerBalance ?? 0))}</b>
               </p>
-              <p className="small">Only the latest bidder wins each round.</p>
+              <p className="small">Only the first bid on the current price wins each round. Last bidder before a raise wins if nobody bids the new amount.</p>
+              <p className="small" style={{ marginTop: 4 }}><b>Balances after this round:</b></p>
             </div>
 
             <div className="scoreList" aria-live="polite">
@@ -797,7 +813,7 @@ export default function App() {
                   </div>
                   <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
                   <div className="playerBidMeta small">
-                    Bid: ${room?.revealedWinner?.playerId === p.id ? room.revealedWinner.amount : 0} • Balance: ${Math.max(0, Math.round(p.balance))}
+                    Bid: ${room?.revealedWinner?.playerId === p.id ? room.revealedWinner.amount : 0} • Balance remaining: ${Math.max(0, Math.round(p.balance))}
                   </div>
                   {isGameHost && (
                     <div className="row fundButtons">
@@ -880,7 +896,7 @@ export default function App() {
           <div className="joinSection" style={{ width: '100%' }}>
             <div className="qrWrap">
               <QRCode value={joinUrl} size={140} />
-              <p className="small">Scan to join, then enter the room code and your name.</p>
+              <p className="small">scan QR code to join</p>
               <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
             </div>
           </div>
@@ -1019,6 +1035,17 @@ export default function App() {
             </>
           )}
         </div>
+        {!isGameHost && room?.started && (
+          <div className="mobileBidBar" aria-live="polite">
+            <div className="mobileBidText">
+              <p className="small">Tap to claim the current bid</p>
+              <strong>${currentBid}</strong>
+            </div>
+            <button className="primaryBidButton mobileBidButton" onClick={playerBid} disabled={timeLeft <= 0}>
+              Bid now
+            </button>
+          </div>
+        )}
       </div>
     )
   }
