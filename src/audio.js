@@ -244,3 +244,105 @@ export function createBidWhistle() {
     play,
   }
 }
+
+// Host raise sound: a focused, commercial-free whistle hit
+export function createHostRaiseWhistle() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  let volume = 0.9
+  let activeSources = []
+
+  const track = (node) => {
+    activeSources.push(node)
+  }
+
+  const stop = () => {
+    activeSources.forEach((node) => {
+      try {
+        node.stop?.(0)
+      } catch {}
+      try {
+        node.disconnect?.()
+      } catch {}
+    })
+    activeSources = []
+  }
+
+  const createNoiseBuffer = () => {
+    const duration = 0.22
+    const bufferSize = Math.floor(ctx.sampleRate * duration)
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < bufferSize; i += 1) {
+      const decay = Math.pow(1 - i / bufferSize, 2.4)
+      data[i] = (Math.random() * 2 - 1) * decay
+    }
+    return buffer
+  }
+
+  const play = async () => {
+    try {
+      await ctx.resume()
+    } catch {}
+
+    stop()
+
+    const start = ctx.currentTime
+    const master = ctx.createGain()
+    master.gain.setValueAtTime(Math.max(0, volume * 1.25), start)
+    master.gain.exponentialRampToValueAtTime(0.0001, start + 1.1)
+    master.connect(ctx.destination)
+
+    const whistle = ctx.createOscillator()
+    whistle.type = 'square'
+    whistle.frequency.setValueAtTime(740, start)
+    whistle.frequency.exponentialRampToValueAtTime(2200, start + 0.48)
+    const whistleGain = ctx.createGain()
+    whistleGain.gain.setValueAtTime(1.05, start)
+    whistleGain.exponentialRampToValueAtTime(0.001, start + 1.02)
+    whistle.connect(whistleGain)
+    whistleGain.connect(master)
+    whistle.start(start)
+    whistle.stop(start + 1.04)
+    track(whistle)
+
+    const overtone = ctx.createOscillator()
+    overtone.type = 'sine'
+    overtone.frequency.setValueAtTime(1800, start + 0.05)
+    overtone.frequency.exponentialRampToValueAtTime(3200, start + 0.35)
+    const overtoneGain = ctx.createGain()
+    overtoneGain.gain.setValueAtTime(0.55, start + 0.05)
+    overtoneGain.exponentialRampToValueAtTime(0.001, start + 0.9)
+    overtone.connect(overtoneGain)
+    overtoneGain.connect(master)
+    overtone.start(start + 0.05)
+    overtone.stop(start + 0.92)
+    track(overtone)
+
+    const hiss = ctx.createBufferSource()
+    hiss.buffer = createNoiseBuffer()
+    const hissFilter = ctx.createBiquadFilter()
+    hissFilter.type = 'highpass'
+    hissFilter.frequency.value = 1400
+    hissFilter.Q.value = 0.9
+    const hissGain = ctx.createGain()
+    hissGain.gain.setValueAtTime(Math.max(0, volume * 0.65), start + 0.02)
+    hissGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.4)
+    hiss.connect(hissFilter)
+    hissFilter.connect(hissGain)
+    hissGain.connect(master)
+    hiss.start(start + 0.02)
+    hiss.stop(start + 0.42)
+    track(hiss)
+  }
+
+  return {
+    async unlock() {
+      if (ctx.state === 'suspended') await ctx.resume()
+    },
+    setVolume(v) {
+      volume = Math.max(0, Math.min(1, Number(v) || 0))
+    },
+    play,
+    stop,
+  }
+}
