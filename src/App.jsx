@@ -65,7 +65,7 @@ const THEMES = {
       btn: '#16a34a',
       btnActive: '#f97316',
       bgImage:
-        "url('https://images.unsplash.com/photo-1482173074468-5a7b83e9661c?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1482513517159-1b1a89f1c894?auto=format&fit=crop&w=1600&q=80')",
     },
   },
   halloween: {
@@ -78,7 +78,7 @@ const THEMES = {
       btn: '#a855f7',
       btnActive: '#fb7185',
       bgImage:
-        "url('https://images.unsplash.com/photo-1504280390368-3971fe2f9304?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1508921912186-1d1a45ebb3c1?auto=format&fit=crop&w=1600&q=80')",
     },
   },
   newyear: {
@@ -104,7 +104,7 @@ const THEMES = {
       btn: '#0ea5e9',
       btnActive: '#f43f5e',
       bgImage:
-        "url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&w=1600&q=80')",
     },
   },
 }
@@ -449,9 +449,8 @@ export default function App() {
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
   const joinUrl = useMemo(() => {
-    if (!roomCode) return new URL(window.location.origin).toString()
-    return new URL(`/r/${roomCode}`, window.location.origin).toString()
-  }, [roomCode])
+    return new URL('/join', window.location.origin).toString()
+  }, [])
 
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
 
@@ -1002,10 +1001,9 @@ export default function App() {
           <div className="joinSection" style={{ width: '100%' }}>
             <div className="qrWrap">
               <QRCode value={joinUrl} size={140} />
-              <p className="small">scan QR code to join</p>
+              <p className="small">Scan to open the join page.</p>
               <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
-              <a className="joinUrl" href={joinUrl} target="_blank" rel="noreferrer">{joinUrl}</a>
-              <p className="small">Visit the link and enter the code to join the room.</p>
+              <p className="small">Players must enter this code after scanning to join your room.</p>
             </div>
           </div>
 
