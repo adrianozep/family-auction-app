@@ -56,49 +56,49 @@ function Icon({ children, size = 44, label, style = {} }) {
   )
 }
 
-function ThemeClipArt({ themeKey }) {
-  const baseSets = {
-    christmas: [
-      <Icon label="Tree"><polygon points="32,6 46,28 18,28" fill="#22c55e"/><polygon points="32,18 52,44 12,44" fill="#16a34a"/><rect x="28" y="44" width="8" height="12" rx="2" fill="#b45309"/><circle cx="24" cy="30" r="3" fill="#fbbf24"/><circle cx="40" cy="38" r="3" fill="#f87171"/><circle cx="32" cy="26" r="3" fill="#60a5fa"/><polygon points="32,4 35,10 42,10 36,14 38,20 32,16 26,20 28,14 22,10 29,10" fill="#fbbf24"/></Icon>,
-      <Icon label="Snowflake"><g stroke="#e0f2fe" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="54"/><line x1="10" y1="32" x2="54" y2="32"/><line x1="16" y1="16" x2="48" y2="48"/><line x1="48" y1="16" x2="16" y2="48"/></g><circle cx="32" cy="32" r="6" fill="#93c5fd" opacity="0.8"/></Icon>,
-      <Icon label="Santa Hat"><path d="M14 40c10-16 22-24 36-20 4 1 6 4 6 8 0 8-10 16-22 16H14z" fill="#ef4444"/><path d="M14 40h38c0 8-6 14-14 14H28c-8 0-14-6-14-14z" fill="#ffffff"/><circle cx="56" cy="28" r="6" fill="#ffffff"/></Icon>,
-      <Icon label="Reindeer"><circle cx="28" cy="34" r="14" fill="#a16207"/><circle cx="22" cy="30" r="3" fill="#111827"/><circle cx="34" cy="30" r="3" fill="#111827"/><circle cx="32" cy="40" r="4" fill="#ef4444"/></Icon>,
-      <Icon label="Lights"><path d="M10 24c10-10 34-10 44 0" stroke="#fbbf24" strokeWidth="5" fill="none" strokeLinecap="round"/><circle cx="18" cy="24" r="5" fill="#22c55e"/><circle cx="28" cy="20" r="5" fill="#60a5fa"/><circle cx="38" cy="20" r="5" fill="#f97316"/><circle cx="48" cy="24" r="5" fill="#f87171"/></Icon>,
-      <Icon label="Gift"><rect x="14" y="26" width="36" height="28" rx="6" fill="#60a5fa"/><rect x="30" y="26" width="4" height="28" fill="#fbbf24"/><rect x="14" y="36" width="36" height="4" fill="#fbbf24"/></Icon>,
-    ],
-    halloween: [
-      <Icon label="Pumpkin"><ellipse cx="32" cy="36" rx="18" ry="16" fill="#f97316"/><rect x="29" y="16" width="6" height="10" rx="2" fill="#22c55e"/></Icon>,
-      <Icon label="Ghost"><path d="M20 50V30c0-10 6-16 12-16s12 6 12 16v20l-6-4-6 4-6-4-6 4z" fill="#e5e7eb"/></Icon>,
-      <Icon label="Bat"><path d="M12 36c8-12 16-12 20 0 4-12 12-12 20 0-8 8-16 12-20 12s-12-4-20-12z" fill="#111827"/></Icon>,
-      <Icon label="Candy"><rect x="18" y="28" width="28" height="18" rx="9" fill="#fb7185"/><polygon points="18,37 10,30 10,44" fill="#a855f7"/><polygon points="46,37 54,30 54,44" fill="#a855f7"/></Icon>,
-      <Icon label="Spider"><circle cx="32" cy="34" r="10" fill="#111827"/><g stroke="#111827" strokeWidth="4" strokeLinecap="round"><line x1="22" y1="34" x2="12" y2="28"/><line x1="42" y1="34" x2="52" y2="28"/></g></Icon>,
-      <Icon label="Moon"><path d="M42 14c-10 2-16 14-10 24 4 8 14 12 22 8-8 10-24 8-32-4-10-14-2-34 20-28z" fill="#fbbf24"/></Icon>,
-    ],
-    newyear: [
-      <Icon label="Firework"><circle cx="32" cy="32" r="6" fill="#fbbf24"/><g stroke="#fbbf24" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="22"/><line x1="10" y1="32" x2="22" y2="32"/><line x1="16" y1="16" x2="24" y2="24"/></g></Icon>,
-      <Icon label="Champagne"><path d="M28 12h8v10c0 6-2 10-4 12-2-2-4-6-4-12V12z" fill="#fbbf24"/></Icon>,
-      <Icon label="Confetti"><circle cx="18" cy="20" r="4" fill="#60a5fa"/><circle cx="46" cy="18" r="4" fill="#22c55e"/><circle cx="40" cy="44" r="4" fill="#fb7185"/></Icon>,
-      <Icon label="Star"><polygon points="32,8 38,24 55,24 41,34 46,50 32,40 18,50 23,34 9,24 26,24" fill="#fbbf24"/></Icon>,
-      <Icon label="Clock"><circle cx="32" cy="32" r="18" fill="#e5e7eb"/><circle cx="32" cy="32" r="14" fill="#0b1220"/></Icon>,
-      <Icon label="Party Hat"><polygon points="32,10 50,52 14,52" fill="#60a5fa"/></Icon>,
-    ],
-    'game-night': [
-      <Icon label="Controller"><rect x="14" y="26" width="36" height="20" rx="10" fill="#0ea5e9"/><circle cx="26" cy="36" r="3" fill="#0b1220"/></Icon>,
-      <Icon label="Dice"><rect x="18" y="18" width="28" height="28" rx="6" fill="#e5e7eb"/><circle cx="26" cy="26" r="3" fill="#0b1220"/></Icon>,
-      <Icon label="Cards"><rect x="18" y="18" width="20" height="28" rx="4" fill="#60a5fa"/><rect x="26" y="22" width="20" height="28" rx="4" fill="#fb7185" opacity="0.95"/></Icon>,
-      <Icon label="Trophy"><path d="M22 18h20v8c0 8-6 14-10 14s-10-6-10-14v-8z" fill="#fbbf24"/></Icon>,
-      <Icon label="Coin"><circle cx="32" cy="32" r="18" fill="#fbbf24"/></Icon>,
-      <Icon label="Megaphone"><path d="M18 34l18-10v20l-18-10z" fill="#f43f5e"/></Icon>,
-    ],
-    classic: [
-      <Icon label="Music"><path d="M22 18h6v26c0 4-3 8-8 8s-8-3-8-8 3-8 8-8c1.4 0 2.8.3 4 .8V18z" fill="#60a5fa"/><path d="M42 14h6v26c0 4-3 8-8 8s-8-3-8-8 3-8 8-8c1.4 0 2.8.3 4 .8V14z" fill="#fbbf24"/></Icon>,
-      <Icon label="Star"><polygon points="32,8 38,24 55,24 41,34 46,50 32,40 18,50 23,34 9,24 26,24" fill="#fbbf24"/></Icon>,
-      <Icon label="Ticket"><rect x="14" y="22" width="36" height="20" rx="6" fill="#60a5fa"/><circle cx="20" cy="32" r="3" fill="#0b1220"/><circle cx="44" cy="32" r="3" fill="#0b1220"/></Icon>,
-      <Icon label="Gavel"><rect x="20" y="24" width="8" height="16" rx="2" fill="#eab308"/><rect x="28" y="18" width="12" height="12" rx="2" fill="#f97316"/></Icon>,
-    ],
-  }
+const CLIPART_SETS = {
+  christmas: [
+    <Icon label="Tree"><polygon points="32,6 46,28 18,28" fill="#22c55e"/><polygon points="32,18 52,44 12,44" fill="#16a34a"/><rect x="28" y="44" width="8" height="12" rx="2" fill="#b45309"/><circle cx="24" cy="30" r="3" fill="#fbbf24"/><circle cx="40" cy="38" r="3" fill="#f87171"/><circle cx="32" cy="26" r="3" fill="#60a5fa"/><polygon points="32,4 35,10 42,10 36,14 38,20 32,16 26,20 28,14 22,10 29,10" fill="#fbbf24"/></Icon>,
+    <Icon label="Snowflake"><g stroke="#e0f2fe" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="54"/><line x1="10" y1="32" x2="54" y2="32"/><line x1="16" y1="16" x2="48" y2="48"/><line x1="48" y1="16" x2="16" y2="48"/></g><circle cx="32" cy="32" r="6" fill="#93c5fd" opacity="0.8"/></Icon>,
+    <Icon label="Santa Hat"><path d="M14 40c10-16 22-24 36-20 4 1 6 4 6 8 0 8-10 16-22 16H14z" fill="#ef4444"/><path d="M14 40h38c0 8-6 14-14 14H28c-8 0-14-6-14-14z" fill="#ffffff"/><circle cx="56" cy="28" r="6" fill="#ffffff"/></Icon>,
+    <Icon label="Reindeer"><circle cx="28" cy="34" r="14" fill="#a16207"/><circle cx="22" cy="30" r="3" fill="#111827"/><circle cx="34" cy="30" r="3" fill="#111827"/><circle cx="32" cy="40" r="4" fill="#ef4444"/></Icon>,
+    <Icon label="Lights"><path d="M10 24c10-10 34-10 44 0" stroke="#fbbf24" strokeWidth="5" fill="none" strokeLinecap="round"/><circle cx="18" cy="24" r="5" fill="#22c55e"/><circle cx="28" cy="20" r="5" fill="#60a5fa"/><circle cx="38" cy="20" r="5" fill="#f97316"/><circle cx="48" cy="24" r="5" fill="#f87171"/></Icon>,
+    <Icon label="Gift"><rect x="14" y="26" width="36" height="28" rx="6" fill="#60a5fa"/><rect x="30" y="26" width="4" height="28" fill="#fbbf24"/><rect x="14" y="36" width="36" height="4" fill="#fbbf24"/></Icon>,
+  ],
+  halloween: [
+    <Icon label="Pumpkin"><ellipse cx="32" cy="36" rx="18" ry="16" fill="#f97316"/><rect x="29" y="16" width="6" height="10" rx="2" fill="#22c55e"/></Icon>,
+    <Icon label="Ghost"><path d="M20 50V30c0-10 6-16 12-16s12 6 12 16v20l-6-4-6 4-6-4-6 4z" fill="#e5e7eb"/></Icon>,
+    <Icon label="Bat"><path d="M12 36c8-12 16-12 20 0 4-12 12-12 20 0-8 8-16 12-20 12s-12-4-20-12z" fill="#111827"/></Icon>,
+    <Icon label="Candy"><rect x="18" y="28" width="28" height="18" rx="9" fill="#fb7185"/><polygon points="18,37 10,30 10,44" fill="#a855f7"/><polygon points="46,37 54,30 54,44" fill="#a855f7"/></Icon>,
+    <Icon label="Spider"><circle cx="32" cy="34" r="10" fill="#111827"/><g stroke="#111827" strokeWidth="4" strokeLinecap="round"><line x1="22" y1="34" x2="12" y2="28"/><line x1="42" y1="34" x2="52" y2="28"/></g></Icon>,
+    <Icon label="Moon"><path d="M42 14c-10 2-16 14-10 24 4 8 14 12 22 8-8 10-24 8-32-4-10-14-2-34 20-28z" fill="#fbbf24"/></Icon>,
+  ],
+  newyear: [
+    <Icon label="Firework"><circle cx="32" cy="32" r="6" fill="#fbbf24"/><g stroke="#fbbf24" strokeWidth="4" strokeLinecap="round"><line x1="32" y1="10" x2="32" y2="22"/><line x1="10" y1="32" x2="22" y2="32"/><line x1="16" y1="16" x2="24" y2="24"/></g></Icon>,
+    <Icon label="Champagne"><path d="M28 12h8v10c0 6-2 10-4 12-2-2-4-6-4-12V12z" fill="#fbbf24"/></Icon>,
+    <Icon label="Confetti"><circle cx="18" cy="20" r="4" fill="#60a5fa"/><circle cx="46" cy="18" r="4" fill="#22c55e"/><circle cx="40" cy="44" r="4" fill="#fb7185"/></Icon>,
+    <Icon label="Star"><polygon points="32,8 38,24 55,24 41,34 46,50 32,40 18,50 23,34 9,24 26,24" fill="#fbbf24"/></Icon>,
+    <Icon label="Clock"><circle cx="32" cy="32" r="18" fill="#e5e7eb"/><circle cx="32" cy="32" r="14" fill="#0b1220"/></Icon>,
+    <Icon label="Party Hat"><polygon points="32,10 50,52 14,52" fill="#60a5fa"/></Icon>,
+  ],
+  'game-night': [
+    <Icon label="Controller"><rect x="14" y="26" width="36" height="20" rx="10" fill="#0ea5e9"/><circle cx="26" cy="36" r="3" fill="#0b1220"/></Icon>,
+    <Icon label="Dice"><rect x="18" y="18" width="28" height="28" rx="6" fill="#e5e7eb"/><circle cx="26" cy="26" r="3" fill="#0b1220"/></Icon>,
+    <Icon label="Cards"><rect x="18" y="18" width="20" height="28" rx="4" fill="#60a5fa"/><rect x="26" y="22" width="20" height="28" rx="4" fill="#fb7185" opacity="0.95"/></Icon>,
+    <Icon label="Trophy"><path d="M22 18h20v8c0 8-6 14-10 14s-10-6-10-14v-8z" fill="#fbbf24"/></Icon>,
+    <Icon label="Coin"><circle cx="32" cy="32" r="18" fill="#fbbf24"/></Icon>,
+    <Icon label="Megaphone"><path d="M18 34l18-10v20l-18-10z" fill="#f43f5e"/></Icon>,
+  ],
+  classic: [
+    <Icon label="Music"><path d="M22 18h6v26c0 4-3 8-8 8s-8-3-8-8 3-8 8-8c1.4 0 2.8.3 4 .8V18z" fill="#60a5fa"/><path d="M42 14h6v26c0 4-3 8-8 8s-8-3-8-8 3-8 8-8c1.4 0 2.8.3 4 .8V14z" fill="#fbbf24"/></Icon>,
+    <Icon label="Star"><polygon points="32,8 38,24 55,24 41,34 46,50 32,40 18,50 23,34 9,24 26,24" fill="#fbbf24"/></Icon>,
+    <Icon label="Ticket"><rect x="14" y="22" width="36" height="20" rx="6" fill="#60a5fa"/><circle cx="20" cy="32" r="3" fill="#0b1220"/><circle cx="44" cy="32" r="3" fill="#0b1220"/></Icon>,
+    <Icon label="Gavel"><rect x="20" y="24" width="8" height="16" rx="2" fill="#eab308"/><rect x="28" y="18" width="12" height="12" rx="2" fill="#f97316"/></Icon>,
+  ],
+}
 
-  const pool = baseSets[themeKey] || baseSets.classic
+function ThemeClipArt({ themeKey }) {
+  const pool = CLIPART_SETS[themeKey] || CLIPART_SETS.classic
   const dense = useMemo(() => {
     const items = []
     const total = 700
@@ -137,9 +137,18 @@ function applyThemeVars(themeKey) {
 
 export default function App() {
   const params = useMemo(() => new URLSearchParams(window.location.search), [])
-  const roomFromUrl = params.get('room')
+  const pathParts = useMemo(() => window.location.pathname.split('/').filter(Boolean), [])
+  const roomFromPath = useMemo(() => {
+    if (pathParts[0] === 'r' && pathParts[1]) return pathParts[1]
+    if (pathParts[0] && pathParts[0].length === 6) return pathParts[0]
+    return null
+  }, [pathParts])
+  const roomFromUrl = params.get('room') || roomFromPath
   const titleFromUrl = params.get('title') ? decodeURIComponent(params.get('title')) : null
-  const joinLanding = useMemo(() => window.location.pathname.includes('/join') || params.get('join') === '1', [params])
+  const joinLanding = useMemo(
+    () => pathParts[0] === 'join' || pathParts[0] === 'r' || !!roomFromPath || params.get('join') === '1',
+    [params, pathParts, roomFromPath]
+  )
 
   const [roomCode, setRoomCode] = useState(() => {
     if (roomFromUrl) return roomFromUrl
@@ -256,8 +265,8 @@ export default function App() {
     setBidInput(room.currentBid ?? 50)
     setStartingFunds(room.startingFunds ?? 500)
     if (!isHost && room.title) setGameTitle(room.title)
-    if (room.theme) setThemeKey(room.theme)
-  }, [room, isHost])
+    if (room.theme && room.theme !== themeKey) setThemeKey(room.theme)
+  }, [room, isHost, themeKey])
 
   // Apply theme vars to page
   useEffect(() => {
@@ -356,7 +365,7 @@ export default function App() {
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
   const safeTitle = encodeURIComponent(gameTitle || 'Auction Game')
-  const joinUrl = roomCode ? `${window.location.origin}?room=${roomCode}` : ''
+  const joinUrl = roomCode ? `${window.location.origin}/r/${roomCode}` : ''
   const shortJoinUrl = `${window.location.origin}/join`
 
   const toggleFullscreen = async () => {
@@ -576,11 +585,19 @@ export default function App() {
   const hostEndGame = async () => {
     if (!isGameHost) return
     if (!roomRef) return
+    const base = Number(room?.baseBid ?? 50)
+    const timerState = { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() }
     await updateDoc(roomRef, {
       started: false,
-      timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
+      roundNumber: 1,
+      currentBid: base,
+      baseBid: base,
+      leadingBid: null,
+      revealedWinner: null,
       currentPriceHasBid: false,
+      timer: timerState,
     })
+    setPrivateNotice('')
   }
 
   // Player bid (first tap wins at current price)
@@ -838,9 +855,15 @@ export default function App() {
 
             <div className="qrWrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '0 auto' }}>
               <QRCode value={joinUrl} size={160} />
+              {joinUrl && (
+                <p className="small">
+                  Scan to join or visit{' '}
+                  <a href={joinUrl} target="_blank" rel="noreferrer">{joinUrl.replace('https://', '').replace('http://', '')}</a>
+                </p>
+              )}
               <p className="small">
-                Scan to join (or enter room code at{' '}
-                <a href={shortJoinUrl} target="_blank" rel="noreferrer">{shortJoinUrl.replace('https://', '')}</a>)
+                Prefer entering a code? Go to{' '}
+                <a href={shortJoinUrl} target="_blank" rel="noreferrer">{shortJoinUrl.replace('https://', '').replace('http://', '')}</a>
               </p>
             </div>
 
