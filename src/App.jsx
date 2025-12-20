@@ -285,6 +285,7 @@ export default function App() {
   const lastBidSoundRef = useRef(null)
   const handledLockedBidRef = useRef(null)
   const lastLockedSoundRef = useRef(null)
+  const lastMobileWinRef = useRef({ round: null, leaderId: null, amount: null })
 
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
@@ -1198,26 +1199,48 @@ export default function App() {
   useEffect(() => {
     if (!room || isGameHost || !isMobile) {
       setMobileWinningNotice('')
+      lastMobileWinRef.current = { round: null, leaderId: null, amount: null }
       return
     }
 
-    if (!room.currentPriceHasBid) {
+    const roundNumber = Number(room.roundNumber ?? 1)
+    const hasLockedLeader = room.currentPriceHasBid && room.leadingBid?.playerId
+
+    if (!hasLockedLeader) {
+      if (lastMobileWinRef.current.round !== roundNumber) {
+        setMobileWinningNotice('')
+        lastMobileWinRef.current = { round: roundNumber, leaderId: null, amount: null }
+      }
+      return
+    }
+
+    const leaderId = room.leadingBid.playerId
+    const amount = Number(room.leadingBid.amount ?? room.currentBid ?? 0)
+
+    if (leaderId === playerId) {
+      const last = lastMobileWinRef.current
+      if (last.round !== roundNumber || last.leaderId !== leaderId || last.amount !== amount) {
+        const message = `✅ You’re currently winning at $${amount}`
+        setMobileWinningNotice(message)
+        lastMobileWinRef.current = { round: roundNumber, leaderId, amount }
+      }
+      return
+    }
+
+    if (lastMobileWinRef.current.leaderId !== leaderId || lastMobileWinRef.current.round !== roundNumber) {
       setMobileWinningNotice('')
-      return
+      lastMobileWinRef.current = { round: roundNumber, leaderId, amount: null }
     }
-
-    const isWinningLeader = room.leadingBid?.playerId === playerId
-
-    if (isWinningLeader) {
-      const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
-      setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
-      return
-    }
-
-    if (room.leadingBid?.playerId) {
-      setMobileWinningNotice('')
-    }
-  }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.amount, room?.currentBid, isMobile, isGameHost, playerId])
+  }, [
+    room?.currentPriceHasBid,
+    room?.leadingBid?.playerId,
+    room?.leadingBid?.amount,
+    room?.currentBid,
+    room?.roundNumber,
+    isMobile,
+    isGameHost,
+    playerId,
+  ])
 
     useEffect(() => {
       if (!room) return
