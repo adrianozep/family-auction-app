@@ -379,7 +379,12 @@ export default function App() {
     }).catch(() => {})
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
-  const joinUrl = `${window.location.origin}/join`
+  const joinUrl = useMemo(() => {
+    const base = new URL(window.location.origin)
+    base.searchParams.set('join', '1')
+    if (roomCode) base.searchParams.set('room', roomCode)
+    return base.toString()
+  }, [roomCode])
 
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
 
