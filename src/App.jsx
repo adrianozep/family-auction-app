@@ -1047,7 +1047,13 @@ export default function App() {
     if (!room?.started) return
     if (!roomRef) return
     if (timeLeft <= 0) return
-    setPrivateNotice('')
+
+    const isCurrentLeader = room?.leadingBid?.playerId === playerId && room?.currentPriceHasBid
+    const preserveWinningNotice = isMobile && isCurrentLeader
+
+    if (!preserveWinningNotice) {
+      setPrivateNotice('')
+    }
 
     const pRef = doc(db, 'rooms', roomCode, 'players', playerId)
     const bidsCol = collection(db, 'rooms', roomCode, 'bids')
@@ -1082,6 +1088,7 @@ export default function App() {
         sayBidPlaced()
         playSparkleSound()
       } else if (result.reason === 'already-claimed') {
+        if (preserveWinningNotice) return
         setPrivateNotice('Current bid is locked in. Wait for the next raise to bid again.')
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
@@ -1166,12 +1173,7 @@ export default function App() {
 
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
       if (!isGameHost) {
-        const isCurrentLeader = room?.leadingBid?.playerId === playerId
-        const shouldPreserveWinningNotice = isMobile && isCurrentLeader
-
-        if (!shouldPreserveWinningNotice) {
-          setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
-        }
+        setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
         playHostRaiseTriplet()
       }
     }
