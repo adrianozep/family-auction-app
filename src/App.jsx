@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode.react'
 import { db } from './firebase.js'
 import { createCountdownBeeps } from './audio.js'
@@ -452,25 +452,9 @@ export default function App() {
     }
   }, [timeLeft, isGameHost, room?.started, soundsEnabled])
 
-  // Auto reveal winner at 0
-  const didAutoRevealRef = useRef(false)
-  useEffect(() => {
-    if (!room?.started) return
-    const timer = room?.timer
-    if (!timer) return
-    const remainingSec = timer?.paused
-      ? Number(timer?.pausedRemainingSec ?? 0)
-      : Math.ceil(Math.max(0, Number(timer?.endAtMs ?? 0) - nowMs()) / 1000)
-
-    if (remainingSec > 0) {
-      didAutoRevealRef.current = false
-      return
-    }
-    if (didAutoRevealRef.current) return
-    didAutoRevealRef.current = true
-    if (room?.revealedWinner) return
-
-    runTransaction(db, async (tx) => {
+  const revealWinner = useCallback(async () => {
+    if (!roomRef) return
+    await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
       const data = snap.data()
@@ -496,7 +480,21 @@ export default function App() {
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
-  }, [room?.started, room?.timer?.endAtMs, room?.timer?.pausedRemainingSec, room?.timer?.paused, room?.revealedWinner, roomRef])
+  }, [roomCode, roomRef])
+
+  // Auto reveal winner at 0
+  const didAutoRevealRef = useRef(false)
+  useEffect(() => {
+    if (!room?.started) return
+    if (room?.revealedWinner) return
+    if (timeLeft > 0) {
+      didAutoRevealRef.current = false
+      return
+    }
+    if (didAutoRevealRef.current) return
+    didAutoRevealRef.current = true
+    revealWinner()
+  }, [room?.started, room?.revealedWinner, timeLeft, revealWinner])
 
   const joinUrl = useMemo(() => {
     const url = new URL('/', window.location.origin)
@@ -573,6 +571,17 @@ export default function App() {
     sparkle(0, 880, 880, 1.25)
     sparkle(1.2, 587, 587, 1.3)
   }
+
+  const playClapCelebration = useCallback(async () => {
+    try {
+      if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
+      if (isGameHost && !soundsEnabled) return
+      await beeperRef.current.unlock?.()
+      beeperRef.current.playClaps?.()
+    } catch {
+      playSparkleSound()
+    }
+  }, [isGameHost, soundsEnabled])
 
   // Join player
   const joinRoom = async () => {
@@ -714,11 +723,7 @@ export default function App() {
         leadingBid: data.leadingBid || null,
       })
     })
-    if (beeperRef.current && soundsEnabled) {
-      try {
-        beeperRef.current.playClaps?.()
-      } catch {}
-    }
+    playSparkleSound()
   }
 
   // Timer
@@ -982,7 +987,6 @@ export default function App() {
 
     useEffect(() => {
       if (!room) return
-      if (!isGameHost) return
       if (!room.currentPriceHasBid) {
         lastLockedSoundRef.current = null
         return
@@ -991,8 +995,8 @@ export default function App() {
       const lockKey = `${room.leadingBid?.playerId ?? 'none'}-${room.leadingBid?.tsMs ?? room.currentBid ?? '0'}`
       if (lastLockedSoundRef.current === lockKey) return
       lastLockedSoundRef.current = lockKey
-      playSparkleSound()
-    }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.currentBid, isGameHost])
+      playClapCelebration()
+    }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.currentBid, playClapCelebration])
 
     if (joinLanding && !roomCode) {
       return (
@@ -1239,6 +1243,11 @@ export default function App() {
             )}
             {isGameHost && !room?.roundReady && !room?.started && <button onClick={hostStartGame}>Prepare Round 1</button>}
             {isGameHost && room?.roundReady && !room?.started && <button onClick={hostStartRound}>Start Round</button>}
+            {isGameHost && (
+              <button onClick={revealWinner} disabled={!room?.started}>
+                Scoreboard
+              </button>
+            )}
             {(isGameHost || !isMobile) && <button onClick={toggleFullscreen}>Full Screen</button>}
           </div>
 
