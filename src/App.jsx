@@ -184,8 +184,9 @@ export default function App() {
   // Theme + countdown beeps
   const [themeKey, setThemeKey] = useState('classic')
   const beeperRef = useRef(null)
-  const [beepsReady, setBeepsReady] = useState(false)
+  const [soundsEnabled, setSoundsEnabled] = useState(false)
   const beep10Ref = useRef({ sec: null })
+  const initialRoomSyncRef = useRef(false)
       
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
@@ -259,13 +260,27 @@ export default function App() {
 
   // Keep host inputs in sync (first load)
   useEffect(() => {
+    initialRoomSyncRef.current = false
+  }, [roomCode])
+
+  useEffect(() => {
     if (!room) return
-    setIncrement(room.increment ?? 10)
-    setCustomTime(room.timer?.durationSec ?? 60)
-    setBidInput(room.currentBid ?? 50)
-    setStartingFunds(room.startingFunds ?? 500)
-    if (!isHost && room.title) setGameTitle(room.title)
-    if (room.theme && room.theme !== themeKey) setThemeKey(room.theme)
+
+    if (!initialRoomSyncRef.current) {
+      setIncrement(room.increment ?? 10)
+      setCustomTime(room.timer?.durationSec ?? 60)
+      setBidInput(room.currentBid ?? 50)
+      setStartingFunds(room.startingFunds ?? 500)
+      if (room.title) setGameTitle(room.title)
+      if (room.theme) setThemeKey(room.theme)
+      initialRoomSyncRef.current = true
+      return
+    }
+
+    if (!isHost) {
+      if (room.title) setGameTitle(room.title)
+      if (room.theme && room.theme !== themeKey) setThemeKey(room.theme)
+    }
   }, [room, isHost, themeKey])
 
   // Apply theme vars to page
@@ -310,7 +325,7 @@ export default function App() {
     if (!isGameHost) return
     if (!room?.started) return
     if (!roomRef) return
-    if (!beepsReady) return
+    if (!soundsEnabled) return
     if (!beeperRef.current) return
 
     if (timeLeft > 10) {
@@ -322,7 +337,7 @@ export default function App() {
       beep10Ref.current.sec = timeLeft
       beeperRef.current.beepFinal(timeLeft)
     }
-  }, [timeLeft, isGameHost, room?.started, beepsReady])
+  }, [timeLeft, isGameHost, room?.started, soundsEnabled])
 
   // Auto reveal winner at 0
   const didAutoRevealRef = useRef(false)
@@ -499,7 +514,7 @@ export default function App() {
     const base = Number(room?.baseBid ?? 0)
     const next = Math.max(base, Number(room?.currentBid ?? 0) + inc)
     await updateDoc(roomRef, { currentBid: next, currentPriceHasBid: false, revealedWinner: null })
-    if (beeperRef.current && beepsReady) {
+    if (beeperRef.current && soundsEnabled) {
       try {
         beeperRef.current.playDoorbell?.()
       } catch {}
@@ -847,20 +862,15 @@ export default function App() {
             )}
           </div>
 
-          <div className="row" style={{ alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div className="row" style={{ alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
             <div>
               <p className="small">Room Code</p>
               <h2>{roomCode}</h2>
             </div>
 
-            <div className="qrWrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '0 auto' }}>
+            <div className="qrWrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '0 auto', alignSelf: 'center' }}>
               <QRCode value={joinUrl} size={160} />
-              {joinUrl && (
-                <p className="small">
-                  Scan to join or visit{' '}
-                  <a href={joinUrl} target="_blank" rel="noreferrer">{joinUrl.replace('https://', '').replace('http://', '')}</a>
-                </p>
-              )}
+              <p className="small">Scan to join</p>
               <p className="small">
                 Prefer entering a code? Go to{' '}
                 <a href={shortJoinUrl} target="_blank" rel="noreferrer">{shortJoinUrl.replace('https://', '').replace('http://', '')}</a>
@@ -868,17 +878,26 @@ export default function App() {
             </div>
 
             <div className="row" style={{ gap: 8 }}>
-              {isGameHost && !beepsReady && (
+              {isGameHost && !soundsEnabled && (
                 <button
                   onClick={async () => {
                     try {
                       if (!beeperRef.current) beeperRef.current = createCountdownBeeps()
                       await beeperRef.current.unlock()
-                      setBeepsReady(true)
+                      setSoundsEnabled(true)
                     } catch {}
                   }}
                 >
                   Enable Game Sounds
+                </button>
+              )}
+              {isGameHost && soundsEnabled && (
+                <button
+                  onClick={() => {
+                    setSoundsEnabled(false)
+                  }}
+                >
+                  Disable Game Sounds
                 </button>
               )}
               {isGameHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
