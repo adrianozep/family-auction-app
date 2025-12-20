@@ -12,8 +12,8 @@
   --btnActive:#64748b;
   --ok:#22c55e;
   --warn:#f59e0b;
-  /* Bright, commercial-friendly background (Unsplash license) */
-  --bg-image:url('https://images.unsplash.com/photo-1521336575822-6da63fb45455?auto=format&fit=crop&w=1600&q=80');
+  /* Emoji-rich gradients are provided via inline style (see App theme vars) */
+  --bg-image:linear-gradient(135deg,#0b1b44,#2b1b63);
 }
 
 *{box-sizing:border-box;font-family:'Inter',sans-serif}
