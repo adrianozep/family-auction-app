@@ -52,7 +52,7 @@ const THEMES = {
       btn: '#2563eb',
       btnActive: '#60a5fa',
       bgImage:
-        "url('https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?auto=format&fit=crop&w=1600&q=80')",
     },
   },
   christmas: {
@@ -65,7 +65,7 @@ const THEMES = {
       btn: '#38bdf8',
       btnActive: '#22c55e',
       bgImage:
-        "url('https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?auto=format&fit=crop&w=2000&q=80')",
+        "url('https://images.unsplash.com/photo-1511367466-95c63f0a5a30?auto=format&fit=crop&w=2000&q=80')",
     },
   },
   halloween: {
@@ -78,7 +78,7 @@ const THEMES = {
       btn: '#a855f7',
       btnActive: '#fb7185',
       bgImage:
-        "url('https://images.unsplash.com/photo-1508921912186-1d1a45ebb3c1?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80')",
     },
   },
   newyear: {
@@ -91,7 +91,7 @@ const THEMES = {
       btn: '#6366f1',
       btnActive: '#fbbf24',
       bgImage:
-        "url('https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1600&q=80')",
     },
   },
   'game-night': {
@@ -104,7 +104,7 @@ const THEMES = {
       btn: '#0ea5e9',
       btnActive: '#f43f5e',
       bgImage:
-        "url('https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1600&q=80')",
     },
   },
 }
