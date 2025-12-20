@@ -27,7 +27,6 @@ body::before{
   background-size:cover;
   background-position:center;
   filter:saturate(1.05) brightness(1.06);
-  animation:bg-zoom 26s ease-in-out infinite alternate;
   z-index:-2;
 }
 body::after{
@@ -69,7 +68,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .dot.warn{background:var(--warn)}
 
 .card > *{position:relative;z-index:1}
-.themeBackdrop{position:absolute;inset:-1px;border-radius:16px;background:linear-gradient(180deg,rgba(0,0,0,.38),rgba(0,0,0,.62));opacity:.65;pointer-events:none;z-index:0;overflow:hidden;animation:bg-shift 14s ease-in-out infinite alternate}
+.themeBackdrop{position:absolute;inset:-1px;border-radius:16px;background:linear-gradient(180deg,rgba(0,0,0,.38),rgba(0,0,0,.62));opacity:.65;pointer-events:none;z-index:0;overflow:hidden}
 .clipLayer{display:none}
 .themeBackdrop .row{display:none}
 .playerGrid{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;width:100%}
@@ -149,10 +148,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   .hostStage>.card{min-width:420px}
 }
 
-@keyframes bg-zoom{from{transform:scale(1)}to{transform:scale(1.06)}}
-@keyframes bg-shift{from{transform:translateY(0)}to{transform:translateY(-8px)}}
-
-
+ 
 /* Countdown bar */
 .barWrap{width:100%;max-width:520px;margin-top:6px}
 .barTrack{width:100%;height:12px;border-radius:999px;background:rgba(229,231,235,.14);overflow:hidden}

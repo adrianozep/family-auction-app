@@ -41,7 +41,7 @@ function getPlayerId(roomCode) {
   return id
 }
 
-function createEmojiBackground({ gradientFrom, gradientTo, emojis, emojiCount = 900 }) {
+function createEmojiBackground({ gradientFrom, gradientTo, emojis, palette = [], emojiCount = 900 }) {
   const width = 1600
   const height = 1600
   let swarm = ''
@@ -54,7 +54,9 @@ function createEmojiBackground({ gradientFrom, gradientTo, emojis, emojiCount = 
     const rotation = Math.floor(Math.random() * 360)
     const opacity = 0.45 + Math.random() * 0.35
 
-    swarm += `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${size.toFixed(2)}" transform="rotate(${rotation} ${x.toFixed(2)} ${y.toFixed(2)})" opacity="${opacity.toFixed(2)}">${emoji}</text>`
+    const color = palette.length > 0 ? palette[i % palette.length] : '#f8fafc'
+
+    swarm += `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${size.toFixed(2)}" transform="rotate(${rotation} ${x.toFixed(2)} ${y.toFixed(2)})" opacity="${opacity.toFixed(2)}" fill="${color}">${emoji}</text>`
   }
 
   const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${gradientFrom}"/><stop offset="100%" stop-color="${gradientTo}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><g font-family="'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif" text-anchor="middle" dominant-baseline="central">${swarm}</g></svg>`
@@ -74,7 +76,8 @@ const THEMES = {
       bgImage: createEmojiBackground({
         gradientFrom: '#0b1b44',
         gradientTo: '#2b1b63',
-        emojis: ['⭐️', '🌙', '✨', '🍷', '🍺'],
+        emojis: ['✦', '✸', '✷', '✺', '✧'],
+        palette: ['#c7d2fe', '#bfdbfe', '#fde68a', '#f97316'],
       }),
     },
   },
@@ -90,7 +93,8 @@ const THEMES = {
       bgImage: createEmojiBackground({
         gradientFrom: '#440707',
         gradientTo: '#d11d1d',
-        emojis: ['🎅', '🦌', '🧝', '❄️', '🔔', '🎄'],
+        emojis: ['✶', '✴', '✵', '✷', '✦', '✺'],
+        palette: ['#fecdd3', '#fef08a', '#bbf7d0', '#bfdbfe'],
       }),
     },
   },
@@ -106,7 +110,8 @@ const THEMES = {
       bgImage: createEmojiBackground({
         gradientFrom: '#0f5132',
         gradientTo: '#4c1d95',
-        emojis: ['🎃', '💀', '🧙‍♀️', '🌙', '🐈‍⬛', '⚗️', '🧟', '🦇'],
+        emojis: ['⬣', '◆', '◇', '⬢', '⬡', '✦', '✧', '✩'],
+        palette: ['#fcd34d', '#f472b6', '#a78bfa', '#34d399'],
       }),
     },
   },
@@ -122,7 +127,8 @@ const THEMES = {
       bgImage: createEmojiBackground({
         gradientFrom: '#0b1220',
         gradientTo: '#f59e0b',
-        emojis: ['🎆', '🎇', '🥂', '🎉', '🎊', '🥳', '🪩', '⏰'],
+        emojis: ['✦', '✸', '✹', '✺', '✼', '✻', '✳', '✴'],
+        palette: ['#fde68a', '#fca5a5', '#93c5fd', '#c4b5fd'],
       }),
     },
   },
@@ -138,7 +144,8 @@ const THEMES = {
       bgImage: createEmojiBackground({
         gradientFrom: '#0ea5e9',
         gradientTo: '#a855f7',
-        emojis: ['🎮', '🎲', '🕹️', '🧩', '🏆', '🧃', '⭐️', '🎧'],
+        emojis: ['✦', '✴', '✹', '✷', '✼', '✵', '✸', '✧'],
+        palette: ['#c7d2fe', '#bae6fd', '#fecdd3', '#bbf7d0'],
       }),
     },
   },
@@ -460,6 +467,14 @@ export default function App() {
   useEffect(() => {
     applyThemeVars(themeKey)
   }, [themeKey])
+
+  useEffect(() => {
+    if (!isGameHost) return
+    if (!roomRef) return
+    if (!room) return
+    if (room.theme === themeKey) return
+    updateDoc(roomRef, { theme: themeKey }).catch(() => {})
+  }, [isGameHost, room, roomRef, themeKey])
 
   // Init beeper (host creates audio context)
   useEffect(() => {
