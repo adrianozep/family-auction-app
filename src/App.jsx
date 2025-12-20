@@ -902,8 +902,6 @@ export default function App() {
       const playersWithBalance = players
         .map((p) => ({ ...p, balance: Number(p.balance ?? room?.startingFunds ?? 0) }))
         .sort((a, b) => b.balance - a.balance)
-      const winnerBalance = playersWithBalance.find((p) => p.id === room?.revealedWinner?.playerId)?.balance
-
       return (
         <div className="app scorePage">
           <div className="card scoreCard" style={{ width: 'min(1100px, 100%)' }}>
@@ -921,15 +919,13 @@ export default function App() {
                 </div>
                 <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
               </div>
-              <p className="small">
-                Bid: <b>${room.revealedWinner?.amount}</b> • Remaining after deduction:{' '}
-                <b>${Math.max(0, Math.round(winnerBalance ?? 0))}</b>
-              </p>
-              <p className="small">Only the first bid on the current price wins each round. Last bidder before a raise wins if nobody bids the new amount.</p>
-              <p className="small" style={{ marginTop: 4 }}><b>Balances after this round:</b></p>
             </div>
 
             <div className="scoreList" aria-live="polite">
+              <div className="scoreboardRow scoreHeader">
+                <p className="small">Players</p>
+                <p className="small">Remaining balance</p>
+              </div>
               {playersWithBalance.map((p) => (
                 <div key={p.id} className="scoreboardRow playerRow">
                   <div>
@@ -937,9 +933,6 @@ export default function App() {
                     {room?.revealedWinner?.playerId === p.id && <span className="pill">Round winner</span>}
                   </div>
                   <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
-                  <div className="playerBidMeta small">
-                    Bid: ${room?.revealedWinner?.playerId === p.id ? room.revealedWinner.amount : 0} • Balance remaining: ${Math.max(0, Math.round(p.balance))}
-                  </div>
                   {isGameHost && (
                     <div className="row fundButtons">
                       {[10, 25, 50].map((v) => (
