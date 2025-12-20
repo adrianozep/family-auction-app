@@ -65,7 +65,7 @@ const THEMES = {
       btn: '#38bdf8',
       btnActive: '#22c55e',
       bgImage:
-        "url('https://images.unsplash.com/photo-1504198458649-3128b932f49b?auto=format&fit=crop&w=1600&q=80')",
+        "url('https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?auto=format&fit=crop&w=2000&q=80')",
     },
   },
   halloween: {
@@ -490,18 +490,25 @@ export default function App() {
 
   // Join player
   const joinRoom = async () => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    if (!roomCode || !roomRef) return
-    const pRef = doc(db, 'rooms', roomCode, 'players', playerId)
-    const baseFunds = Math.max(0, Number(room?.startingFunds ?? startingFunds ?? 500))
+    const trimmedName = name.trim()
+    const trimmedRoomCode = roomCode.trim().toUpperCase()
+    if (!trimmedName) return
+    if (!trimmedRoomCode) return
+    if (trimmedRoomCode !== roomCode) setRoomCode(trimmedRoomCode)
+
+    const targetRoomRef = doc(db, 'rooms', trimmedRoomCode, 'players', playerId)
+    const roomDocRef = doc(db, 'rooms', trimmedRoomCode)
     await runTransaction(db, async (tx) => {
-      const snap = await tx.get(pRef)
-      const existing = snap.exists() ? snap.data() : {}
+      const snap = await tx.get(roomDocRef)
+      if (!snap.exists()) return
+      const playerSnap = await tx.get(targetRoomRef)
+      const roomData = snap.exists() ? snap.data() : {}
+      const existing = playerSnap.exists() ? playerSnap.data() : {}
+      const baseFunds = Math.max(0, Number(roomData?.startingFunds ?? room?.startingFunds ?? startingFunds ?? 500))
       tx.set(
-        pRef,
+        targetRoomRef,
         {
-          name: trimmed,
+          name: trimmedName,
           joinedAt: serverTimestamp(),
           balance: existing?.balance ?? baseFunds,
         },
@@ -873,7 +880,15 @@ export default function App() {
         <div className="app">
           <div className="card" style={{ maxWidth: 520 }}>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
-            <p className="small">Enter your name to join the room.</p>
+            <p className="small">Enter your room code first, then add your name to join.</p>
+            <div className="row" style={{ marginTop: 10 }}>
+              <input
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                placeholder="Room code"
+                maxLength={8}
+              />
+            </div>
             <div className="row" style={{ marginTop: 10 }}>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
               <button onClick={joinRoom}>Join Room</button>
@@ -1006,7 +1021,6 @@ export default function App() {
               <QRCode value={joinUrl} size={140} />
               <p className="small">Scan to open the join page.</p>
               <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
-              <p className="small">Players must enter this code after scanning to join your room.</p>
             </div>
           </div>
 
