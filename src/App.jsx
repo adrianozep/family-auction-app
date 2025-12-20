@@ -622,17 +622,61 @@ export default function App() {
     chime(0.62, 1760, 1.3, 5)
   }, [])
 
-  const playBidWhistle = useCallback(async (force = false) => {
-    try {
-      if (!whistleRef.current) whistleRef.current = createCountdownBeeps()
-      if (isGameHost && !soundsEnabled && !force) return
-      await whistleRef.current.unlock?.()
-      whistleRef.current.setVolume?.(1)
-      whistleRef.current.playWhistle?.()
-    } catch {
-      playSparkleSound()
-    }
-  }, [isGameHost, soundsEnabled, playSparkleSound])
+  const playBidWhistle = useCallback(
+    async (force = false) => {
+      const tryBackupWhistle = () => {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)()
+          const start = ctx.currentTime
+          const master = ctx.createGain()
+          master.gain.setValueAtTime(0.9, start)
+          master.gain.exponentialRampToValueAtTime(0.0001, start + 1.2)
+          master.connect(ctx.destination)
+
+          const body = ctx.createOscillator()
+          body.type = 'square'
+          body.frequency.setValueAtTime(950, start)
+          body.frequency.exponentialRampToValueAtTime(1800, start + 0.5)
+          const bodyGain = ctx.createGain()
+          bodyGain.gain.setValueAtTime(1.1, start)
+          bodyGain.exponentialRampToValueAtTime(0.001, start + 1)
+          body.connect(bodyGain)
+          bodyGain.connect(master)
+          body.start(start)
+          body.stop(start + 1.05)
+
+          const airy = ctx.createOscillator()
+          airy.type = 'triangle'
+          airy.frequency.setValueAtTime(1200, start + 0.02)
+          airy.frequency.exponentialRampToValueAtTime(2600, start + 0.5)
+          const airyGain = ctx.createGain()
+          airyGain.gain.setValueAtTime(0.7, start + 0.02)
+          airyGain.exponentialRampToValueAtTime(0.001, start + 1.1)
+          airy.connect(airyGain)
+          airyGain.connect(master)
+          airy.start(start + 0.02)
+          airy.stop(start + 1.1)
+
+          setTimeout(() => {
+            try { ctx.close() } catch {}
+          }, 1400)
+        } catch {
+          playSparkleSound()
+        }
+      }
+
+      try {
+        if (!whistleRef.current) whistleRef.current = createCountdownBeeps()
+        if (isGameHost && !soundsEnabled && !force) return
+        await whistleRef.current.unlock?.()
+        whistleRef.current.setVolume?.(1)
+        whistleRef.current.playWhistle?.()
+      } catch {
+        tryBackupWhistle()
+      }
+    },
+    [isGameHost, soundsEnabled, playSparkleSound]
+  )
 
   const playClapCelebration = useCallback(async () => {
     try {
@@ -996,7 +1040,7 @@ export default function App() {
   }
 
     const currentBid = Number(room?.currentBid ?? 0)
-    const showWinner = !!room?.revealedWinner
+    const showWinner = !!room?.revealedWinner && timerHydrated && timeLeft <= 0
     const stagedStatusText = isGameHost || !isMobile
       ? 'Round is staged. Update settings and tap Start Round when ready.'
       : 'Waiting for the next round to start'
