@@ -153,63 +153,85 @@ export function createCountdownBeeps() {
   }
 }
 
-const BID_WHISTLE_DATA_URL =
-  'data:audio/wav;base64,UklGRjg2AQBXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YRQ2AQAAAGsRVSI/MrFAQE2PV09fgGeKYZaZY3eaf3SHegDcQTsOhkuUN5Lj82Hc8HMuf7ASQzoyYU0Ncl4V2nUDhI+MDfX+bvhssU8uUtcx983+hXwLGk0JgrDdjk64tnprV/a22v3f7C5sVxI63mBLAA3x5I4oBObAcOgh9kAhthxbqhIq2B1OQvtn/rFGA2pPTkC/lyDy4jvuF0+nD6Hx27CPSaXMXpnM4GrkPpUDm3iOCLGI1u21GF2ksPd3w5rMhQt3gSwC+N3xoB06IgSyiH2ZQuNGh5shLq3gyOQgpcTBVdER+BfoMeZPTpDv5wq1RvGlntd+vk/r3wXoooGwFJojTlKZhEc2WcoFhir4E7+i/g8M07CX+S+z2ceIWtlomHsxw+s7okXLbVE4EtMmzgmDbRmm92OoK6mOvn3Et5K3OjK1h2KyqnK2yXNjbjAJmYYeiv1F7XeZCqeNfJiRqS3sY3qmz1h3+RfZ/PmJSdzpS15djcTOaw+YOHjjlqvWlZD42xgTUe6hfGYPDrkHaas6VtX4e9iPBAfJFcIvcl6p20c0t4axpEWtJ4leWUOs8DH1/pXRbtWp1ZO9rnx7wllxu5IJnOpJKtk4/v6UAZIkJrE/'+
-  'mCg6ksG3TwYp9A9tlt9btnowVSkPB+cSDRkTnTR874RlvAk1ZMdUEt56j8frur1O9LuvcOBx+boPaQfqEwjK98DCGowNfclV76+r7sP3bzPOF8I6dybcq2pc/N+4B5rjCjdz4lOWM0A733E1Dy9QzVb/1X+pmWqjR1tVZtpgFtLzG2DZKQQjd7+JUEgZRMzdArK+bCpKDq/tuXIYLUeIMc/R4DBKIXyiH2YUYOBHeMAzZcPfXgZP0hhoEf7c2IikOGaA54NjX3nN1zNueC+oS4bd2F0ekyEe59FVE02JgKTdnPsUb6XueJjFtZdi4zU++OARw9+NBjYuPfeB5AAMohPmAlDgIba8C3bUVzrf+/Bc51aI7An2vw1HCkPTcDQcx6RHYwf07yM112InOD6CjlMChWsPB0jk2Lktfus/I7by0m+/shXwUGk8JDre3dnB02hnhHRoxJrQf5fTBKZ5weSj8E28ZBNpI=' // Generated in-tool sine-sweep whistle
-
-// Web-audio whistle for bid raises (no external samples)
+// Web-audio trumpet + snare hit for bid raises (no external samples)
 export function createBidWhistle() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)()
   let volume = 0.85
 
-  const playWebSynthesis = () => {
-    const start = ctx.currentTime
+  const createNoiseBuffer = () => {
+    const duration = 0.35
+    const bufferSize = Math.floor(ctx.sampleRate * duration)
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < bufferSize; i += 1) {
+      const decay = Math.pow(1 - i / bufferSize, 2)
+      data[i] = (Math.random() * 2 - 1) * decay
+    }
+    return buffer
+  }
 
+  const playBrassAndSnare = () => {
+    const start = ctx.currentTime
     const master = ctx.createGain()
-    master.gain.setValueAtTime(Math.max(0, volume * 1.2), start)
-    master.gain.exponentialRampToValueAtTime(0.0001, start + 1.1)
+    master.gain.setValueAtTime(Math.max(0, volume * 1.1), start)
+    master.gain.exponentialRampToValueAtTime(0.0001, start + 1.2)
     master.connect(ctx.destination)
 
-    const body = ctx.createOscillator()
-    body.type = 'sawtooth'
-    body.frequency.setValueAtTime(820, start)
-    body.frequency.exponentialRampToValueAtTime(1800, start + 0.5)
-    const bodyGain = ctx.createGain()
-    bodyGain.gain.setValueAtTime(0.9, start)
-    bodyGain.exponentialRampToValueAtTime(0.001, start + 1.05)
-    body.connect(bodyGain)
-    bodyGain.connect(master)
-    body.start(start)
-    body.stop(start + 1.08)
+    const brass = ctx.createOscillator()
+    brass.type = 'sawtooth'
+    brass.frequency.setValueAtTime(520, start)
+    brass.frequency.exponentialRampToValueAtTime(880, start + 0.35)
+    const brassGain = ctx.createGain()
+    brassGain.gain.setValueAtTime(0.95, start)
+    brassGain.exponentialRampToValueAtTime(0.001, start + 1.15)
 
-    const overtone = ctx.createOscillator()
-    overtone.type = 'triangle'
-    overtone.frequency.setValueAtTime(1600, start + 0.04)
-    overtone.frequency.exponentialRampToValueAtTime(2600, start + 0.55)
-    const overtoneGain = ctx.createGain()
-    overtoneGain.gain.setValueAtTime(0.65, start + 0.04)
-    overtoneGain.exponentialRampToValueAtTime(0.001, start + 1.12)
-    overtone.connect(overtoneGain)
-    overtoneGain.connect(master)
-    overtone.start(start + 0.04)
-    overtone.stop(start + 1.14)
+    const brassFilter = ctx.createBiquadFilter()
+    brassFilter.type = 'bandpass'
+    brassFilter.frequency.setValueAtTime(820, start)
+    brassFilter.Q.value = 1.4
+
+    brass.connect(brassFilter)
+    brassFilter.connect(brassGain)
+    brassGain.connect(master)
+    brass.start(start)
+    brass.stop(start + 1.18)
+
+    const harmony = ctx.createOscillator()
+    harmony.type = 'triangle'
+    harmony.frequency.setValueAtTime(780, start + 0.02)
+    harmony.frequency.exponentialRampToValueAtTime(1160, start + 0.42)
+    const harmonyGain = ctx.createGain()
+    harmonyGain.gain.setValueAtTime(0.6, start + 0.02)
+    harmonyGain.exponentialRampToValueAtTime(0.001, start + 1.05)
+    harmony.connect(harmonyGain)
+    harmonyGain.connect(master)
+    harmony.start(start + 0.02)
+    harmony.stop(start + 1.08)
+
+    const noise = ctx.createBufferSource()
+    noise.buffer = createNoiseBuffer()
+    const noiseFilter = ctx.createBiquadFilter()
+    noiseFilter.type = 'highpass'
+    noiseFilter.frequency.value = 1200
+    noiseFilter.Q.value = 0.9
+    const noiseGain = ctx.createGain()
+    noiseGain.gain.setValueAtTime(Math.max(0, volume * 0.85), start + 0.01)
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.4)
+    noise.connect(noiseFilter)
+    noiseFilter.connect(noiseGain)
+    noiseGain.connect(master)
+    noise.start(start + 0.01)
+    noise.stop(start + 0.42)
   }
 
   const play = async () => {
-    const vol = Math.max(0, Math.min(1, volume))
     try {
       await ctx.resume()
     } catch {}
 
     try {
-      const el = new Audio(BID_WHISTLE_DATA_URL)
-      el.volume = vol
-      const htmlPlay = el.play()
-      playWebSynthesis()
-      if (htmlPlay?.catch) htmlPlay.catch(() => playWebSynthesis())
-    } catch {
-      playWebSynthesis()
-    }
+      playBrassAndSnare()
+    } catch {}
   }
 
   return {
