@@ -72,6 +72,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playerChip{padding:10px 14px;border-radius:14px;background:rgba(99,102,241,.14);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;gap:10px;align-items:center;justify-content:space-between;min-width:200px}
 .playerChipName{font-weight:700}
 .playerChipBalance{font-size:.9rem;opacity:.8}
+.hostStage{display:flex;gap:12px;width:100%;justify-content:center;align-items:stretch;flex-wrap:wrap}
+.hostStage>.card{flex:1 1 640px;max-width:980px}
+.playerRail{flex:1 1 200px;max-width:240px;min-width:180px;background:var(--card2);border:1px solid rgba(229,231,235,.12);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;backdrop-filter:blur(6px)}
+.playerRailList{display:flex;flex-direction:column;gap:8px;flex:1;min-height:120px}
+.playerRailChip{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .scoreboard{width:100%;max-width:480px;margin:0 auto;padding:12px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,.35),rgba(14,165,233,.28));border:1px solid rgba(255,255,255,.2);box-shadow:0 12px 32px rgba(0,0,0,.28)}
 .scoreboardRow{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .scoreboardMeta{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:160px}
@@ -104,6 +109,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 @media (max-width: 900px){
   .card{max-width:520px}
+  .playerRail{display:none}
+  .hostStage{flex-direction:column;align-items:center}
   .controlsRow{flex-direction:column}
   .boxDivider{display:none}
   .joinSection{gap:14px}
