@@ -101,17 +101,31 @@ function ThemeClipArt({ themeKey }) {
   const pool = baseSets[themeKey] || baseSets.classic
   const dense = useMemo(() => {
     const items = []
-    const total = 160
+    const total = 700
     for (let i = 0; i < total; i += 1) {
       const base = pool[i % pool.length]
-      const size = 26 + (i % 8) * 2
-      const rotation = (i * 17) % 360
-      items.push(React.cloneElement(base, { key: `${themeKey}-${i}`, size, style: { transform: `rotate(${rotation}deg)` } }))
+      const size = 18 + (i % 12) * 2
+      const rotation = Math.floor(Math.random() * 360)
+      const column = i % 3
+      const xSpread = column === 0 ? Math.random() * 28 : column === 1 ? 36 + Math.random() * 28 : 72 + Math.random() * 24
+      const ySpread = Math.random() * 100
+      const jitter = (i % 5) * 0.07
+      items.push(React.cloneElement(base, {
+        key: `${themeKey}-${i}`,
+        size,
+        style: {
+          position: 'absolute',
+          left: `${Math.min(98, xSpread)}%`,
+          top: `${Math.min(98, ySpread)}%`,
+          transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+          opacity: 0.18 + jitter,
+        },
+      }))
     }
     return items
   }, [pool, themeKey])
 
-  return <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap', justifyContent: 'center' }}>{dense}</div>
+  return <div className="clipLayer">{dense}</div>
 }
 
 
@@ -125,19 +139,29 @@ export default function App() {
   const params = useMemo(() => new URLSearchParams(window.location.search), [])
   const roomFromUrl = params.get('room')
   const titleFromUrl = params.get('title') ? decodeURIComponent(params.get('title')) : null
+  const joinLanding = useMemo(() => window.location.pathname.includes('/join') || params.get('join') === '1', [params])
 
-  const [roomCode] = useState(roomFromUrl || generateRoomCode())
-  const [isHost] = useState(!roomFromUrl)
+  const [roomCode, setRoomCode] = useState(() => {
+    if (roomFromUrl) return roomFromUrl
+    if (joinLanding) return ''
+    return generateRoomCode()
+  })
+  const [isHost] = useState(!roomFromUrl && !joinLanding)
 
   const playerId = useMemo(() => getPlayerId(roomCode), [roomCode])
 
   const [joined, setJoined] = useState(isHost)
+  const [landingRoomInput, setLandingRoomInput] = useState('')
   const [name, setName] = useState('')
 
   const [room, setRoom] = useState(null)
   const [loadingRoom, setLoadingRoom] = useState(true)
-  const roomRef = useMemo(() => doc(db, 'rooms', roomCode), [roomCode])
+  const roomRef = useMemo(() => (roomCode ? doc(db, 'rooms', roomCode) : null), [roomCode])
   const isGameHost = (room?.hostId && room.hostId === playerId) || isHost
+
+  useEffect(() => {
+    if (!roomRef) setLoadingRoom(false)
+  }, [roomRef])
 
   const [timeLeft, setTimeLeft] = useState(0)
   const [players, setPlayers] = useState([])
@@ -160,6 +184,7 @@ export default function App() {
   // Create room if host (idempotent)
   useEffect(() => {
     if (!isHost) return
+    if (!roomRef) return
     ;(async () => {
       const snap = await getDoc(roomRef)
       if (snap.exists()) return
@@ -191,6 +216,7 @@ export default function App() {
 
   // Subscribe to room realtime
   useEffect(() => {
+    if (!roomRef) return undefined
     setLoadingRoom(true)
     const unsub = onSnapshot(
       roomRef,
@@ -209,6 +235,7 @@ export default function App() {
 
   // Subscribe to players realtime (everyone sees arrivals live)
   useEffect(() => {
+    if (!roomCode) return undefined
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const unsub = onSnapshot(playersRef, (snap) => {
       const list = snap.docs
@@ -273,6 +300,7 @@ export default function App() {
   useEffect(() => {
     if (!isGameHost) return
     if (!room?.started) return
+    if (!roomRef) return
     if (!beepsReady) return
     if (!beeperRef.current) return
 
@@ -328,7 +356,8 @@ export default function App() {
   }, [room?.started, timeLeft, room?.revealedWinner, roomRef])
 
   const safeTitle = encodeURIComponent(gameTitle || 'Auction Game')
-  const joinUrl = `${window.location.origin}?room=${roomCode}`
+  const joinUrl = roomCode ? `${window.location.origin}?room=${roomCode}` : ''
+  const shortJoinUrl = `${window.location.origin}/join`
 
   const toggleFullscreen = async () => {
     try {
@@ -355,6 +384,7 @@ export default function App() {
   const joinRoom = async () => {
     const trimmed = name.trim()
     if (!trimmed) return
+    if (!roomCode || !roomRef) return
     const pRef = doc(db, 'rooms', roomCode, 'players', playerId)
     const baseFunds = Math.max(0, Number(room?.startingFunds ?? startingFunds ?? 500))
     await runTransaction(db, async (tx) => {
@@ -374,8 +404,15 @@ export default function App() {
   }
 
     // Host actions
+  const buildTimerState = (durationSec) => {
+    const duration = Math.max(1, Math.floor(Number(durationSec) || 60))
+    const end = nowMs() + duration * 1000
+    return { durationSec: duration, endAtMs: end, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() }
+  }
+
   const hostSaveMeta = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     await updateDoc(roomRef, {
       title: gameTitle || 'Auction Game',
       theme: themeKey,
@@ -385,6 +422,7 @@ export default function App() {
 
   const hostApplyStartingFunds = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     const base = Math.max(0, Number(startingFunds) || 0)
     setStartingFunds(base)
     await updateDoc(roomRef, { startingFunds: base })
@@ -395,30 +433,27 @@ export default function App() {
 
   const hostStartGame = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
       const data = snap.data()
+      const timerState = buildTimerState(customTime || data?.timer?.durationSec || 60)
       tx.update(roomRef, {
         title: gameTitle || data.title || 'Auction Game',
         theme: themeKey,
         started: true,
         revealedWinner: null,
         currentPriceHasBid: false,
-        timer: {
-          ...(data.timer || {}),
-          durationSec: Number(customTime) || 60,
-          endAtMs: 0,
-          paused: false,
-          pausedRemainingSec: 0,
-          updatedAt: serverTimestamp(),
-        },
+        leadingBid: null,
+        timer: timerState,
       })
     })
   }
 
   const hostSetBidBase = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     const v = Math.max(0, Number(bidInput) || 0)
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
@@ -436,18 +471,21 @@ export default function App() {
 
   const hostResetToBase = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     const base = Number(room?.baseBid ?? 50)
     await updateDoc(roomRef, { currentBid: base, currentPriceHasBid: false, revealedWinner: null })
   }
 
   const hostPickIncrement = async (v) => {
     if (!isGameHost) return
+    if (!roomRef) return
     setIncrement(v)
     await updateDoc(roomRef, { increment: v })
   }
 
   const hostRaiseBid = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     const inc = Number(room?.increment ?? increment ?? 10)
     const base = Number(room?.baseBid ?? 0)
     const next = Math.max(base, Number(room?.currentBid ?? 0) + inc)
@@ -462,10 +500,10 @@ export default function App() {
   // Timer
   const hostTimerStart = async () => {
     if (!isGameHost) return
-    const duration = Math.max(1, Math.floor(Number(customTime) || 60))
-    const end = nowMs() + duration * 1000
+    if (!roomRef) return
+    const timerState = buildTimerState(customTime)
     await updateDoc(roomRef, {
-      timer: { durationSec: duration, endAtMs: end, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
+      timer: timerState,
       currentPriceHasBid: false,
       leadingBid: null,
       revealedWinner: null,
@@ -474,6 +512,7 @@ export default function App() {
 
   const hostTimerPause = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     const remaining = Math.max(0, Math.floor(timeLeft))
     await updateDoc(roomRef, {
       timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: true, pausedRemainingSec: remaining, updatedAt: serverTimestamp() },
@@ -482,6 +521,7 @@ export default function App() {
 
   const hostTimerResume = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     const remaining = Math.max(0, Math.floor(room?.timer?.pausedRemainingSec ?? timeLeft ?? 0))
     const end = nowMs() + remaining * 1000
     await updateDoc(roomRef, {
@@ -491,6 +531,7 @@ export default function App() {
 
   const hostTimerEnd = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     await updateDoc(roomRef, {
       timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
     })
@@ -498,6 +539,7 @@ export default function App() {
 
   const hostAddFunds = async (targetPlayerId, delta) => {
     if (!isGameHost || !targetPlayerId || !room?.revealedWinner) return
+    if (!roomRef) return
     const pRef = doc(db, 'rooms', roomCode, 'players', targetPlayerId)
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(pRef)
@@ -510,19 +552,22 @@ export default function App() {
 
   const hostNextRound = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
       const data = snap.data()
       const nextRound = Number(data.roundNumber ?? 1) + 1
       const base = Number(data.baseBid ?? 50)
+      const timerState = buildTimerState(data.timer?.durationSec ?? customTime ?? 60)
       tx.update(roomRef, {
         roundNumber: nextRound,
         revealedWinner: null,
         leadingBid: null,
         currentPriceHasBid: false,
         currentBid: base,
-        timer: { durationSec: Number(data.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
+        timer: timerState,
+        started: true,
       })
     })
     setPrivateNotice('')
@@ -530,6 +575,7 @@ export default function App() {
 
   const hostEndGame = async () => {
     if (!isGameHost) return
+    if (!roomRef) return
     await updateDoc(roomRef, {
       started: false,
       timer: { durationSec: Number(room?.timer?.durationSec ?? customTime ?? 60), endAtMs: 0, paused: false, pausedRemainingSec: 0, updatedAt: serverTimestamp() },
@@ -539,12 +585,14 @@ export default function App() {
 
   // Player bid (first tap wins at current price)
   const playerBid = async () => {
-      if (!room?.started) return
-      if (timeLeft <= 0) return
-      setPrivateNotice('')
+    if (!room?.started) return
+    if (!roomRef) return
+    if (timeLeft <= 0) return
+    setPrivateNotice('')
 
     const pRef = doc(db, 'rooms', roomCode, 'players', playerId)
     const bidsCol = collection(db, 'rooms', roomCode, 'bids')
+    const bidMoment = nowMs()
 
     try {
       const result = await runTransaction(db, async (tx) => {
@@ -552,35 +600,77 @@ export default function App() {
         if (!snap.exists()) return { ok:false, reason:'no-room' }
         const data = snap.data()
         const current = Number(data.currentBid ?? 0)
-        if (data.currentPriceHasBid === true) return { ok:false, reason:'late', amount: current }
 
         const pSnap = await tx.get(pRef)
         const pName = (pSnap.exists() && pSnap.data().name) ? pSnap.data().name : 'Player'
+        const starting = Number(data.startingFunds ?? startingFunds ?? 0)
+        const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
+        if (balance < current) return { ok:false, reason:'insufficient', amount: current, balance }
 
-        const leading = { playerId, name: pName, amount: current, ts: serverTimestamp() }
+        const previousBidTs = Number(data.leadingBid?.tsMs ?? 0)
+        const tsMs = Math.max(bidMoment, previousBidTs + 1)
+        const leading = { playerId, name: pName, amount: current, ts: serverTimestamp(), tsMs }
         tx.update(roomRef, { currentPriceHasBid: true, leadingBid: leading, revealedWinner: null })
-        return { ok:true, name:pName, amount: current }
+        return { ok:true, name:pName, amount: current, balance }
       })
 
       if (result.ok) {
         await addDoc(bidsCol, { playerId, name: result.name, amount: result.amount, ts: serverTimestamp() })
         setPrivateNotice(`✅ You’re currently winning at $${result.amount}`)
         sayBidPlaced()
+      } else if (result.reason === 'insufficient') {
+        setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
+      } else if (result.reason === 'no-room') {
+        setPrivateNotice('⚠️ Room missing. Refresh and try again.')
       } else {
-        setPrivateNotice(`❌ Too late — someone already bid first at $${result.amount ?? (room?.currentBid ?? '')}`)
+        setPrivateNotice('❌ Another bid was placed first. Try again!')
       }
-      } catch {
-        setPrivateNotice('⚠️ Bid failed. Try again.')
-      }
+    } catch {
+      setPrivateNotice('⚠️ Bid failed. Try again.')
     }
+  }
 
     const currentBid = Number(room?.currentBid ?? 0)
-    const statusText = room?.currentPriceHasBid
-      ? 'First bid locked — winner reveals when the timer ends'
-      : 'Waiting for first bid'
+    const lastBidderName = room?.leadingBid?.name
+    const statusText = lastBidderName
+      ? `${lastBidderName} has the latest bid at $${currentBid}`
+      : 'Waiting for bids'
     const showWinner = !!room?.revealedWinner
     const activeThemeKey = room?.theme || themeKey
     const roundNumber = Number(room?.roundNumber ?? 1)
+    const you = players.find((p) => p.id === playerId)
+    const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
+
+    if (joinLanding && !roomCode) {
+      return (
+        <div className="app">
+          <div className="card" style={{ maxWidth: 520 }}>
+            <h1>Join a Room</h1>
+            <p className="small">Enter the room code from your host to jump in.</p>
+            <div className="row" style={{ marginTop: 10 }}>
+              <input
+                value={landingRoomInput}
+                onChange={(e) => setLandingRoomInput(e.target.value.toUpperCase())}
+                placeholder="Room code"
+                maxLength={8}
+              />
+              <button
+                onClick={() => {
+                  const trimmed = landingRoomInput.trim().toUpperCase()
+                  if (!trimmed) return
+                  setRoomCode(trimmed)
+                  setRoom(null)
+                  setPlayers([])
+                  setLoadingRoom(true)
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
 
     if (loadingRoom) {
       return (
@@ -623,6 +713,7 @@ export default function App() {
       const playersWithBalance = players
         .map((p) => ({ ...p, balance: Number(p.balance ?? room?.startingFunds ?? 0) }))
         .sort((a, b) => b.balance - a.balance)
+      const winnerBalance = playersWithBalance.find((p) => p.id === room?.revealedWinner?.playerId)?.balance
 
       return (
         <div className="app scorePage">
@@ -643,7 +734,11 @@ export default function App() {
                 </div>
                 <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
               </div>
-              <p className="small">Only the winning bidder is deducted automatically.</p>
+              <p className="small">
+                Bid: <b>${room.revealedWinner?.amount}</b> • Remaining after deduction:{' '}
+                <b>${Math.max(0, Math.round(winnerBalance ?? 0))}</b>
+              </p>
+              <p className="small">Only the latest bidder wins each round.</p>
             </div>
 
             <div className="scoreList" aria-live="polite">
@@ -654,6 +749,9 @@ export default function App() {
                     {room?.revealedWinner?.playerId === p.id && <span className="pill">Round winner</span>}
                   </div>
                   <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
+                  <div className="playerBidMeta small">
+                    Bid: ${room?.revealedWinner?.playerId === p.id ? room.revealedWinner.amount : 0} • Balance: ${Math.max(0, Math.round(p.balance))}
+                  </div>
                   {isGameHost && (
                     <div className="row fundButtons">
                       {[10, 25, 50].map((v) => (
@@ -670,6 +768,7 @@ export default function App() {
                 <>
                   <button onClick={hostNextRound}>Next Round</button>
                   <button onClick={toggleFullscreen}>Full Screen</button>
+                  <button onClick={hostEndGame}>End Game</button>
                 </>
               )}
               {!isGameHost && <button onClick={toggleFullscreen}>Full Screen</button>}
@@ -722,7 +821,10 @@ export default function App() {
             {players.length > 0 && (
               <div className="playerGrid" aria-live="polite">
                 {players.map((p) => (
-                  <div key={p.id} className="playerChip">{p.name}</div>
+                  <div key={p.id} className="playerChip">
+                    <div className="playerChipName">{p.name}</div>
+                    <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                  </div>
                 ))}
               </div>
             )}
@@ -734,9 +836,12 @@ export default function App() {
               <h2>{roomCode}</h2>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <div className="qrWrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '0 auto' }}>
               <QRCode value={joinUrl} size={160} />
-              <p className="small">Scan to join (or enter room code)</p>
+              <p className="small">
+                Scan to join (or enter room code at{' '}
+                <a href={shortJoinUrl} target="_blank" rel="noreferrer">{shortJoinUrl.replace('https://', '')}</a>)
+              </p>
             </div>
 
             <div className="row" style={{ gap: 8 }}>
@@ -754,11 +859,6 @@ export default function App() {
                 </button>
               )}
               {isGameHost && !room?.started && <button onClick={hostStartGame}>Start Game</button>}
-              {isGameHost && (
-                <button disabled={!room?.started} onClick={hostEndGame}>
-                  End Game
-                </button>
-              )}
               <button onClick={toggleFullscreen}>Full Screen</button>
             </div>
           </div>
@@ -770,9 +870,16 @@ export default function App() {
             <div className="bid">${currentBid}</div>
 
             <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
-              <span className={"dot " + (room?.currentPriceHasBid ? 'ok' : 'warn')} />
+              <span className={"dot " + (room?.leadingBid ? 'ok' : 'warn')} />
               <span>{statusText}</span>
             </div>
+
+            {!isGameHost && (
+              <div className="chip balanceChip" aria-live="polite">
+                <span>Remaining funds:</span>
+                <strong>${myBalance}</strong>
+              </div>
+            )}
 
             <p className="small" style={{ marginTop: 8 }}>
               Time left: <b>{formatTime(timeLeft)}</b> {paused && timeLeft > 0 ? '(paused)' : ''}
@@ -807,7 +914,7 @@ export default function App() {
               <div className="controlsRow">
                 <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start' }}>
                   <div className="boxTitle">Your Move</div>
-                  <button onClick={playerBid} disabled={timeLeft <= 0}>Bid ${currentBid}</button>
+                  <button className="primaryBidButton" onClick={playerBid} disabled={timeLeft <= 0}>Bid ${currentBid}</button>
                 </div>
               </div>
             </>
@@ -822,12 +929,11 @@ export default function App() {
                   <div className="boxTitle">Timer</div>
                   <input type="number" min={1} max={600} value={customTime} onChange={e => setCustomTime(Number(e.target.value))} />
                   <div className="row">
-                    <button onClick={hostTimerStart}>Start</button>
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerPause}>Pause</button>
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerResume}>Resume</button>
                     <button disabled={!room?.started || timeLeft <= 0} onClick={hostTimerEnd}>End</button>
                   </div>
-                  <p className="small">Remaining: <b>{formatTime(timeLeft)}</b></p>
+                  <p className="small">Remaining: <b>{formatTime(timeLeft)}</b> (starts with Start Game / Next Round)</p>
                 </div>
 
                 <div className="boxDivider" />

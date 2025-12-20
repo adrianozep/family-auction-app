@@ -15,15 +15,18 @@
 
 *{box-sizing:border-box;font-family:'Inter',sans-serif}
 body{margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh;overflow:hidden}
-.app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;width:100%}
-.card{position:relative;overflow:auto;background:var(--card);padding:32px;border-radius:16px;text-align:center;max-width:980px;width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 16px 40px rgba(0,0,0,.35);max-height:calc(100vh - 32px)}
-h1,h2,p{margin:0}
+.app{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:12px;width:100%;overflow:hidden}
+.card{position:relative;overflow:hidden;background:var(--card);padding:clamp(18px,3vw,28px);border-radius:16px;text-align:center;max-width:980px;width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 16px 40px rgba(0,0,0,.35);max-height:calc(100vh - 24px);height:min(980px,calc(100vh - 24px))}
+h1,h2,p{margin:0;line-height:1.25}
+h1{font-size:clamp(1.4rem,3.8vw,2.4rem)}
+h2{font-size:clamp(1.1rem,3.2vw,1.8rem)}
 input,select{padding:10px 12px;border-radius:10px;border:1px solid rgba(229,231,235,.2);background:rgba(15,23,42,.6);color:var(--text);width:100%}
-button{padding:10px 14px;border:none;border-radius:12px;background:var(--btn);color:#fff;font-weight:600;cursor:pointer}
+button{padding:10px 14px;border:none;border-radius:12px;background:var(--btn);color:#fff;font-weight:600;cursor:pointer;transition:transform .1s ease}
+button:active{transform:scale(.98)}
 button:disabled{opacity:.5;cursor:not-allowed}
 .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .small{font-size:.9rem;opacity:.75}
-.bid{font-size:56px;font-weight:700}
+.bid{font-size:clamp(36px,8vw,56px);font-weight:700}
 .hr{height:1px;width:100%;background:var(--line);margin:6px 0}
 
 .controlsRow{width:100%;display:flex;align-items:stretch;gap:18px;flex-wrap:wrap}
@@ -37,10 +40,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .dot.warn{background:var(--warn)}
 
 .card > *{position:relative;z-index:1}
-.themeBackdrop{position:absolute;inset:8px;opacity:.12;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35));z-index:0;display:flex;flex-wrap:wrap;align-content:flex-start;overflow:hidden}
+.themeBackdrop{position:absolute;inset:6px;opacity:.12;pointer-events:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35));z-index:0;overflow:hidden}
+.clipLayer{position:absolute;inset:0}
 .themeBackdrop .row{justify-content:center;align-content:flex-start}
 .playerGrid{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;width:100%}
-.playerChip{padding:8px 12px;border-radius:999px;background:rgba(99,102,241,.18);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.25);backdrop-filter:blur(3px)}
+.playerChip{padding:10px 14px;border-radius:14px;background:rgba(99,102,241,.14);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 18px rgba(0,0,0,.25);backdrop-filter:blur(3px);display:flex;gap:10px;align-items:center;justify-content:space-between;min-width:200px}
+.playerChipName{font-weight:700}
+.playerChipBalance{font-size:.9rem;opacity:.8}
 .scoreboard{width:100%;max-width:520px;margin:0 auto;padding:14px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,.35),rgba(14,165,233,.28));border:1px solid rgba(255,255,255,.2);box-shadow:0 12px 32px rgba(0,0,0,.28)}
 .scoreboardRow{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .scoreboardAmount{font-size:32px;font-weight:800;color:#fbbf24;text-shadow:0 8px 14px rgba(0,0,0,.35)}
@@ -50,8 +56,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .playerRow:last-child{border-bottom:none}
 .fundButtons button{padding:6px 10px;font-size:.9rem;width:auto!important}
 .scorePage .card{align-items:stretch}
+.playerBidMeta{width:100%;text-align:right}
 
 .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid rgba(229,231,235,.12);background:rgba(15,23,42,.35);font-size:.85rem}
+
+.primaryBidButton{width:100%;font-size:clamp(1.1rem,4vw,1.6rem);padding:clamp(14px,3.5vw,20px);background:linear-gradient(135deg,var(--btn),var(--btnActive));box-shadow:0 12px 28px rgba(0,0,0,.32)}
+.balanceChip{gap:6px;margin-top:6px}
+.qrWrap a{color:var(--text);text-decoration:underline}
 
 @media (max-width: 900px){
   .card{max-width:520px}
@@ -60,10 +71,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
 }
 
 @media (max-width: 640px){
-  .app{padding:10px}
-  .card{padding:20px;max-height:calc(100vh - 20px)}
+  .app{padding:8px}
+  .card{padding:18px;max-height:calc(100vh - 16px)}
   .bid{font-size:42px}
   button{width:100%}
+}
+
+@media (max-height: 760px){
+  .card{gap:8px;padding:16px;height:calc(100vh - 12px)}
+  .controlBox{min-width:200px}
+  .small{font-size:.85rem}
 }
 
 
