@@ -721,6 +721,12 @@ export default function App() {
       tx.update(roomRef, { started: true, roundReady: false, revealedWinner: null, timer: timerState, currentPriceHasBid: false })
     })
     setPrivateNotice('')
+    if (beeperRef.current && soundsEnabled) {
+      try {
+        await beeperRef.current.unlock?.()
+        beeperRef.current.playGunshot?.()
+      } catch {}
+    }
   }
 
   const hostEndGame = async () => {
@@ -917,14 +923,19 @@ export default function App() {
                   <p className="small">Winner</p>
                   <h2>{room.revealedWinner?.name}</h2>
                 </div>
-                <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
+                <div className="scoreboardMeta">
+                  <p className="small">Winning Bid</p>
+                  <div className="scoreboardAmount">${room.revealedWinner?.amount}</div>
+                </div>
               </div>
             </div>
 
             <div className="scoreList" aria-live="polite">
               <div className="scoreboardRow scoreHeader">
                 <p className="small">Players</p>
-                <p className="small">Remaining balance</p>
+                <div className="scoreboardMeta">
+                  <p className="small">Remaining balance</p>
+                </div>
               </div>
               {playersWithBalance.map((p) => (
                 <div key={p.id} className="scoreboardRow playerRow">
@@ -932,14 +943,16 @@ export default function App() {
                     <p className="small">{p.name}</p>
                     {room?.revealedWinner?.playerId === p.id && <span className="pill">Round winner</span>}
                   </div>
-                  <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
-                  {isGameHost && (
-                    <div className="row fundButtons">
-                      {[10, 25, 50].map((v) => (
-                        <button key={v} onClick={() => hostAddFunds(p.id, v)}>+${v}</button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="scoreboardMeta">
+                    <div className="scoreboardAmount">${Math.max(0, Math.round(p.balance))}</div>
+                    {isGameHost && (
+                      <div className="row fundButtons">
+                        {[10, 25, 50].map((v) => (
+                          <button key={v} onClick={() => hostAddFunds(p.id, v)}>+${v}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
