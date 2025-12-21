@@ -600,6 +600,7 @@ export default function App() {
   const revealWinner = useCallback(async () => {
     if (!roomRef) return
     if (!timerHydrated) return
+    const shouldDeduct = timeLeft <= 0
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
@@ -612,13 +613,15 @@ export default function App() {
       if (leading) {
         winner = { name: leading.name, amount: leading.amount, playerId: leading.playerId, ts: serverTimestamp() }
         if (leading.playerId) {
-          const pRef = doc(db, 'rooms', roomCode, 'players', leading.playerId)
-          const pSnap = await tx.get(pRef)
-          const starting = Number(data.startingFunds ?? 0)
-          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
-          const deduction = Number(leading.amount || 0)
-          const newBalance = Math.max(0, balance - deduction)
-          tx.set(pRef, { balance: newBalance }, { merge: true })
+          if (shouldDeduct) {
+            const pRef = doc(db, 'rooms', roomCode, 'players', leading.playerId)
+            const pSnap = await tx.get(pRef)
+            const starting = Number(data.startingFunds ?? 0)
+            const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
+            const deduction = Number(leading.amount || 0)
+            const newBalance = Math.max(0, balance - deduction)
+            tx.set(pRef, { balance: newBalance }, { merge: true })
+          }
         }
       } else {
         winner = { name: 'No winner', amount: 0, ts: serverTimestamp() }
@@ -626,7 +629,7 @@ export default function App() {
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
-  }, [roomCode, roomRef, timerHydrated])
+  }, [roomCode, roomRef, timerHydrated, timeLeft])
 
   // Auto reveal winner at 0
   const didAutoRevealRef = useRef(false)
@@ -1177,7 +1180,10 @@ export default function App() {
   const playerBid = async () => {
     if (!room?.started) return
     if (!roomRef) return
-    if (timeLeft <= 0) return
+    if (timeLeft <= 1) {
+      setPrivateNotice('⏱️ Bidding is closed for the final second of the round.')
+      return
+    }
 
     const isCurrentLeader = room?.leadingBid?.playerId === playerId && room?.currentPriceHasBid
     const preserveWinningNotice = isMobile && isCurrentLeader
@@ -1340,7 +1346,6 @@ export default function App() {
     if (!hasLockedLeader) {
       if (lastWinningBidRef.current.round !== roundNumber) {
         setHostWinningBidMessage('')
-        if (!isGameHost && isMobile) setMobileWinningNotice('')
         lastWinningBidRef.current = { round: roundNumber, leaderId: null, amount: null }
       }
       return
