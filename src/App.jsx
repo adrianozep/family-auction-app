@@ -612,23 +612,22 @@ export default function App() {
       let winner
 
       if (leading) {
-        winner = { name: leading.name, amount: leading.amount, playerId: leading.playerId, ts: serverTimestamp() }
-        if (leading.playerId && roundHasEnded) {
-          const pRef = doc(db, 'rooms', roomCode, 'players', leading.playerId)
-          const pSnap = await tx.get(pRef)
-          const starting = Number(data.startingFunds ?? 0)
-          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
-          const deduction = Number(leading.amount || 0)
-          const newBalance = Math.max(0, balance - deduction)
-          tx.set(pRef, { balance: newBalance }, { merge: true })
+        winner = {
+          name: leading.name,
+          amount: leading.amount,
+          playerId: leading.playerId,
+          ts: serverTimestamp(),
+          deducted: false,
         }
       } else {
-        winner = { name: 'No winner', amount: 0, ts: serverTimestamp() }
+        winner = { name: 'No winner', amount: 0, ts: serverTimestamp(), deducted: true }
       }
+
+      if (!roundHasEnded) return
 
       tx.update(roomRef, { revealedWinner: winner })
     }).catch(() => {})
-  }, [roomCode, roomRef, timerHydrated, timeLeft])
+  }, [roomRef, timerHydrated, timeLeft])
 
   // Auto reveal winner at 0
   const didAutoRevealRef = useRef(false)
@@ -1313,6 +1312,37 @@ export default function App() {
       !isGameHost &&
       (!isMobile || (privateNotice !== mobileWinningNotice && !showMobileTopNotice))
 
+    useEffect(() => {
+      if (!showWinner) return
+      if (!isGameHost) return
+      if (!roomRef) return
+      if (!room?.revealedWinner?.playerId) return
+      if (room?.revealedWinner?.deducted) return
+
+      const applyWinnerDeduction = async () => {
+        await runTransaction(db, async (tx) => {
+          const roomSnap = await tx.get(roomRef)
+          if (!roomSnap.exists()) return
+          const data = roomSnap.data()
+          const winner = data.revealedWinner
+          if (!winner?.playerId) return
+          if (winner?.deducted) return
+
+          const pRef = doc(db, 'rooms', roomCode, 'players', winner.playerId)
+          const pSnap = await tx.get(pRef)
+          const starting = Number(data.startingFunds ?? 0)
+          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
+          const deduction = Math.max(0, Number(winner.amount || 0))
+          const newBalance = Math.max(0, balance - deduction)
+
+          tx.set(pRef, { balance: newBalance }, { merge: true })
+          tx.update(roomRef, { revealedWinner: { ...winner, deducted: true } })
+        }).catch(() => {})
+      }
+
+      applyWinnerDeduction()
+    }, [showWinner, isGameHost, roomRef, roomCode, room?.revealedWinner?.playerId, room?.revealedWinner?.amount, room?.revealedWinner?.deducted, room?.startingFunds])
+
   useEffect(() => {
     if (!room) return
     const current = Number(room.currentBid ?? 0)
@@ -1699,14 +1729,14 @@ export default function App() {
               <span>{mobileWinningNotice}</span>
             </div>
           )}
-          {isMobile && !isGameHost && (
-            <div className="chip" aria-live="polite" style={{ marginTop: 6 }}>
-              <span>Current winning bid: ${currentBid}</span>
-            </div>
-          )}
           {showMobileTopNotice && (
             <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 6 }}>
               <span>{privateNotice}</span>
+            </div>
+          )}
+          {isMobile && !isGameHost && !showWinner && (
+            <div className="chip" aria-live="polite" style={{ marginTop: 6 }}>
+              <span>Current winning bid: ${currentBid}</span>
             </div>
           )}
 
