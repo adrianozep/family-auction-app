@@ -1254,17 +1254,12 @@ export default function App() {
       : room?.roundReady && !room?.started
         ? stagedStatusText
         : room?.currentPriceHasBid
-          ? (isGameHost ? 'Waiting for the next raise to bid again.' : lockedBidMessage)
+          ? (isGameHost ? ' Wait for the next raise to bid again.' : lockedBidMessage)
           : 'Waiting for bids'
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const isLeadingPlayer = room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId
     const currentWinningBidAmount = Number(room?.leadingBid?.amount ?? room?.currentBid ?? 0)
-    const showCurrentWinningBidChip =
-      isMobile &&
-      !isGameHost &&
-      !showWinner &&
-      room?.currentPriceHasBid &&
-      !isLeadingPlayer
+    const showCurrentWinningBidChip = isMobile && !isGameHost && !showWinner
     const activeThemeKey = room?.theme || themeKey
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
@@ -1729,24 +1724,19 @@ export default function App() {
               <span>{hostWinningBidMessage}</span>
             </div>
           )}
-          {isGameHost && room?.currentPriceHasBid && (
-            <div className="chip" aria-live="polite" style={{ marginTop: 6 }}>
-              <span>{lockedBidMessage}</span>
-            </div>
-          )}
           {isMobile && mobileWinningNotice && (
             <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{mobileWinningNotice}</span>
             </div>
           )}
-          {showCurrentWinningBidChip && (
-            <div className="chip currentBidChip" aria-live="polite" style={{ marginTop: 6 }}>
-              <span>Current winning bid: ${currentWinningBidAmount}</span>
-            </div>
-          )}
           {showMobileTopNotice && (
             <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 6 }}>
               <span>{privateNotice}</span>
+            </div>
+          )}
+          {showCurrentWinningBidChip && (
+            <div className="chip currentBidChip" aria-live="polite" style={{ marginTop: 6 }}>
+              <span>Current winning bid: ${currentWinningBidAmount}</span>
             </div>
           )}
 
