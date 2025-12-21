@@ -10,5 +10,23 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-const app = initializeApp(firebaseConfig)
-export const db = getFirestore(app)
+let configError = null
+let db = null
+
+try {
+  const missingKeys = Object.entries(firebaseConfig)
+    .filter(([, value]) => !value)
+    .map(([key]) => key)
+
+  if (missingKeys.length > 0) {
+    throw new Error(`Missing Firebase config values: ${missingKeys.join(', ')}`)
+  }
+
+  const app = initializeApp(firebaseConfig)
+  db = getFirestore(app)
+} catch (error) {
+  console.error('Firebase initialization failed', error)
+  configError = error
+}
+
+export { db, configError }
