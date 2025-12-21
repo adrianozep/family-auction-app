@@ -597,31 +597,30 @@ export default function App() {
     }
   }, [timeLeft, isGameHost, room?.started, soundsEnabled])
 
-  const revealWinner = useCallback(async () => {
+  const revealWinner = useCallback(async (forceDeduct = false) => {
     if (!roomRef) return
     if (!timerHydrated) return
-    const shouldDeduct = timeLeft <= 0
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(roomRef)
       if (!snap.exists()) return
       const data = snap.data()
       if (data.revealedWinner) return
 
+      const roundHasEnded = forceDeduct || timeLeft <= 0 || Number(data?.timer?.endAtMs ?? 0) <= 0
+
       const leading = data.leadingBid || null
       let winner
 
       if (leading) {
         winner = { name: leading.name, amount: leading.amount, playerId: leading.playerId, ts: serverTimestamp() }
-        if (leading.playerId) {
-          if (shouldDeduct) {
-            const pRef = doc(db, 'rooms', roomCode, 'players', leading.playerId)
-            const pSnap = await tx.get(pRef)
-            const starting = Number(data.startingFunds ?? 0)
-            const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
-            const deduction = Number(leading.amount || 0)
-            const newBalance = Math.max(0, balance - deduction)
-            tx.set(pRef, { balance: newBalance }, { merge: true })
-          }
+        if (leading.playerId && roundHasEnded) {
+          const pRef = doc(db, 'rooms', roomCode, 'players', leading.playerId)
+          const pSnap = await tx.get(pRef)
+          const starting = Number(data.startingFunds ?? 0)
+          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
+          const deduction = Number(leading.amount || 0)
+          const newBalance = Math.max(0, balance - deduction)
+          tx.set(pRef, { balance: newBalance }, { merge: true })
         }
       } else {
         winner = { name: 'No winner', amount: 0, ts: serverTimestamp() }
@@ -1248,6 +1247,7 @@ export default function App() {
     const stagedStatusText = isGameHost || !isMobile
       ? 'Round is staged. Update settings and tap Start Round when ready.'
       : 'Waiting for the next round to start'
+    const lockedBidMessage = 'Current bid is locked in. Wait for the next raise to bid again.'
     const statusText = showWinner
       ? room?.revealedWinner?.name
         ? `${room.revealedWinner.name} won this round at $${room.revealedWinner.amount}`
@@ -1255,7 +1255,7 @@ export default function App() {
       : room?.roundReady && !room?.started
         ? stagedStatusText
         : room?.currentPriceHasBid
-          ? (isGameHost ? 'Current bid is locked in. Wait for the next raise to bid again.' : 'Wait for the next raise to bid again')
+          ? (isGameHost ? 'Waiting for the next raise to bid again.' : lockedBidMessage)
           : 'Waiting for bids'
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const activeThemeKey = room?.theme || themeKey
@@ -1666,7 +1666,7 @@ export default function App() {
                 if (!room?.started) return
                 await hostTimerEnd()
                 setTimeLeft(0)
-                await revealWinner()
+                await revealWinner(true)
               }}
               disabled={!room?.started}
               title="End the current round and show the winner results"
@@ -1689,9 +1689,19 @@ export default function App() {
               <span>{hostWinningBidMessage}</span>
             </div>
           )}
+          {isGameHost && room?.currentPriceHasBid && (
+            <div className="chip" aria-live="polite" style={{ marginTop: 6 }}>
+              <span>{lockedBidMessage}</span>
+            </div>
+          )}
           {isMobile && mobileWinningNotice && (
             <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{mobileWinningNotice}</span>
+            </div>
+          )}
+          {isMobile && !isGameHost && (
+            <div className="chip" aria-live="polite" style={{ marginTop: 6 }}>
+              <span>Current winning bid: ${currentBid}</span>
             </div>
           )}
           {showMobileTopNotice && (
