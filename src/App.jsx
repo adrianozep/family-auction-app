@@ -41,7 +41,7 @@ function getPlayerId(roomCode) {
   return id
 }
 
-function createEmojiBackground({ gradientFrom, gradientTo, emojis, palette = [], emojiCount = 900 }) {
+function createEmojiBackground({ gradientFrom, gradientTo, emojis, palette = [], emojiCount = 480 }) {
   const width = 1600
   const height = 1600
   let swarm = ''
@@ -200,11 +200,11 @@ const CLIPART_SETS = {
   ],
 }
 
-function ThemeClipArt({ themeKey }) {
+const ThemeClipArt = React.memo(function ThemeClipArt({ themeKey }) {
   const pool = CLIPART_SETS[themeKey] || CLIPART_SETS.classic
   const dense = useMemo(() => {
     const items = []
-    const total = 700
+    const total = 260
     for (let i = 0; i < total; i += 1) {
       const base = pool[i % pool.length]
       const size = 18 + (i % 12) * 2
@@ -229,7 +229,7 @@ function ThemeClipArt({ themeKey }) {
   }, [pool, themeKey])
 
   return <div className="clipLayer">{dense}</div>
-}
+})
 
 
 function applyThemeVars(themeKey) {
@@ -1068,13 +1068,13 @@ export default function App() {
     if (!roomRef) return
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const bidsRef = collection(db, 'rooms', roomCode, 'bids')
-    const [playerSnap, bidsSnap] = await Promise.all([getDocs(playersRef), getDocs(bidsRef)])
-    await Promise.all([
-      ...playerSnap.docs.map((d) => deleteDoc(d.ref)),
-      ...bidsSnap.docs.map((d) => deleteDoc(d.ref)),
-    ])
 
     try {
+      const [playerSnap, bidsSnap] = await Promise.all([getDocs(playersRef), getDocs(bidsRef)])
+      await Promise.all([
+        ...playerSnap.docs.map((d) => deleteDoc(d.ref)),
+        ...bidsSnap.docs.map((d) => deleteDoc(d.ref)),
+      ])
       await deleteDoc(roomRef)
     } catch {}
 
@@ -1087,9 +1087,14 @@ export default function App() {
     setCustomTime(60)
     setRoom(null)
     setPlayers([])
+    setCustomFundInputs({})
+    setTimeLeft(0)
+    setTimerHydrated(false)
     setLoadingRoom(true)
-    setJoined(true)
+    setJoined(isHost)
     setPrivateNotice('')
+    setMobileWinningNotice('')
+    initialRoomSyncRef.current = false
     setRoomCode(newCode)
   }
 
