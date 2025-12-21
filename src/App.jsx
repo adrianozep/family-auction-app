@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode.react'
-import { db } from './firebase.js'
+import { configError, db } from './firebase.js'
 import { createBidWhistle, createCountdownBeeps, createHostRaiseTriplet, createHostRaiseWhistle } from './audio.js'
 import {
   collection,
@@ -313,6 +313,19 @@ export default function App() {
     window.addEventListener('resize', updateScale)
     return () => window.removeEventListener('resize', updateScale)
   }, [])
+
+  if (configError) {
+    return (
+      <div className="app">
+        <div className="card">
+          <h1>Family Auction</h1>
+          <p className="small">We could not start the game because the Firebase connection is missing.</p>
+          <p className="small">Add the VITE_FIREBASE_* environment values (or a .env.local file) and reload to continue.</p>
+          <code className="small">{String(configError.message || configError)}</code>
+        </div>
+      </div>
+    )
+  }
 
   const playerId = useMemo(() => getPlayerId(roomCode), [roomCode])
 
