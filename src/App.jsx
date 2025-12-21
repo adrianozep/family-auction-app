@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode.react'
-import { configError, db } from './firebase.js'
+import { db } from './firebase.js'
 import { createBidWhistle, createCountdownBeeps, createHostRaiseTriplet, createHostRaiseWhistle } from './audio.js'
 import {
   collection,
@@ -314,19 +314,6 @@ export default function App() {
     return () => window.removeEventListener('resize', updateScale)
   }, [])
 
-  if (configError) {
-    return (
-      <div className="app">
-        <div className="card">
-          <h1>Family Auction</h1>
-          <p className="small">We could not start the game because the Firebase connection is missing.</p>
-          <p className="small">Add the VITE_FIREBASE_* environment values (or a .env.local file) and reload to continue.</p>
-          <code className="small">{String(configError.message || configError)}</code>
-        </div>
-      </div>
-    )
-  }
-
   const playerId = useMemo(() => getPlayerId(roomCode), [roomCode])
 
   const hostNoticeKey = useMemo(() => (roomCode ? `auction_host_notice_${roomCode}` : ''), [roomCode])
@@ -345,7 +332,7 @@ export default function App() {
 
   const [room, setRoom] = useState(null)
   const [loadingRoom, setLoadingRoom] = useState(true)
-  const roomRef = useMemo(() => (roomCode && db ? doc(db, 'rooms', roomCode) : null), [roomCode, db])
+  const roomRef = useMemo(() => (roomCode ? doc(db, 'rooms', roomCode) : null), [roomCode])
   const isGameHost = (room?.hostId && room.hostId === playerId) || isHost
 
   useEffect(() => {
@@ -506,7 +493,7 @@ export default function App() {
 
   // Subscribe to players realtime (everyone sees arrivals live)
   useEffect(() => {
-    if (!roomCode || !db) return undefined
+    if (!roomCode) return undefined
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const unsub = onSnapshot(playersRef, (snap) => {
       const list = snap.docs
@@ -516,7 +503,7 @@ export default function App() {
       setPlayers(list)
     })
     return () => unsub()
-  }, [roomCode, db])
+  }, [roomCode])
 
   useEffect(() => {
     if (isHost) return
@@ -1282,27 +1269,22 @@ export default function App() {
         : room?.currentPriceHasBid
           ? lockedBidMessage
           : 'Waiting for bids'
-    const statusText = (isLockedOutNotice && !isGameHost)
+    const statusText = baseStatusText === 'Waiting for bids' && (isGameHost || isMobile)
       ? ''
-      : baseStatusText === 'Waiting for bids' && (isGameHost || isMobile)
-        ? ''
-        : baseStatusText
+      : baseStatusText
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const isLeadingPlayer = room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId
     const roundNumber = Number(room?.roundNumber ?? 1)
     const hasEstablishedWinningBid =
       lastWinningBidRef.current.round === roundNumber && lastWinningBidRef.current.amount !== null
-    const currentWinningBidAmount = hasEstablishedWinningBid
-      ? Number(lastWinningBidRef.current.amount ?? 0)
-      : 0
+    const currentWinningBidAmount = Number(room?.currentBid ?? 0)
     const showCurrentWinningBidChip =
       isMobile &&
       !isGameHost &&
       !showWinner &&
       hasEstablishedWinningBid &&
       room?.leadingBid?.playerId &&
-      room?.leadingBid?.playerId !== playerId &&
-      !isLockedOutNotice
+      room?.leadingBid?.playerId !== playerId
     const showQrDetails = !isMobile || !room?.started || showWinner
     const activeThemeKey = room?.theme || themeKey
     const you = players.find((p) => p.id === playerId)
@@ -1391,7 +1373,7 @@ export default function App() {
   useEffect(() => {
     if (!room) return
     const current = Number(room.currentBid ?? 0)
-    const hasStarted = room.started
+    const hasStarted = room.started || room.roundReady
 
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
       if (!isGameHost) {
@@ -1400,17 +1382,17 @@ export default function App() {
       }
     }
     previousBidRef.current = current
-  }, [room?.currentBid, room?.started, isGameHost, playHostRaiseTriplet])
+  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
     const current = Number(room.currentBid ?? 0)
-    const hasStarted = room.started
+    const hasStarted = room.started || room.roundReady
     if (lastBidSoundRef.current !== null && current > lastBidSoundRef.current && hasStarted) {
       playHostRaiseTriplet()
     }
     lastBidSoundRef.current = current
-  }, [room?.currentBid, room?.started, playHostRaiseTriplet])
+  }, [room?.currentBid, room?.started, room?.roundReady, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
@@ -1602,6 +1584,12 @@ export default function App() {
             <div className="pill">Round {roundNumber}</div>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
             <p className="small">Timer hit zero — here are the winning results.</p>
+
+            {isMobile && mobileWinningNotice && (
+              <div className="chip winningChip" aria-live="polite" style={{ marginTop: 10 }}>
+                <span>{mobileWinningNotice}</span>
+              </div>
+            )}
 
             <div className="scoreboard" style={{ marginTop: 10 }}>
               <div className="boxTitle">Winning Results</div>
