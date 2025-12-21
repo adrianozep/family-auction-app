@@ -345,7 +345,7 @@ export default function App() {
 
   const [room, setRoom] = useState(null)
   const [loadingRoom, setLoadingRoom] = useState(true)
-  const roomRef = useMemo(() => (roomCode ? doc(db, 'rooms', roomCode) : null), [roomCode])
+  const roomRef = useMemo(() => (roomCode && db ? doc(db, 'rooms', roomCode) : null), [roomCode, db])
   const isGameHost = (room?.hostId && room.hostId === playerId) || isHost
 
   useEffect(() => {
@@ -506,7 +506,7 @@ export default function App() {
 
   // Subscribe to players realtime (everyone sees arrivals live)
   useEffect(() => {
-    if (!roomCode) return undefined
+    if (!roomCode || !db) return undefined
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const unsub = onSnapshot(playersRef, (snap) => {
       const list = snap.docs
@@ -516,7 +516,7 @@ export default function App() {
       setPlayers(list)
     })
     return () => unsub()
-  }, [roomCode])
+  }, [roomCode, db])
 
   useEffect(() => {
     if (isHost) return
