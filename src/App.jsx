@@ -1224,7 +1224,7 @@ export default function App() {
         playSparkleSound()
       } else if (result.reason === 'already-claimed') {
         if (preserveWinningNotice) return
-        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${result.amount}. Wait for the next raise to bid again.`)
+        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${result.amount}.`)
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
       } else if (result.reason === 'no-room') {
@@ -1249,7 +1249,7 @@ export default function App() {
       : room?.roundReady && !room?.started
         ? stagedStatusText
         : room?.currentPriceHasBid
-          ? (isGameHost ? 'Current bid is locked in. Wait for the next raise to bid again.' : 'Waiting for the next raise')
+          ? (isGameHost ? 'Current bid is locked in. Wait for the next raise to bid again.' : 'Wait for the next raise to bid again')
           : 'Waiting for bids'
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const activeThemeKey = room?.theme || themeKey
@@ -1337,8 +1337,8 @@ export default function App() {
     const roundNumber = Number(room.roundNumber ?? 1)
     const hasLockedLeader = room.currentPriceHasBid && room.leadingBid?.playerId
 
-    if (!hasLockedLeader || room.revealedWinner) {
-      if (lastWinningBidRef.current.round !== roundNumber || room.revealedWinner) {
+    if (!hasLockedLeader) {
+      if (lastWinningBidRef.current.round !== roundNumber) {
         setHostWinningBidMessage('')
         if (!isGameHost && isMobile) setMobileWinningNotice('')
         lastWinningBidRef.current = { round: roundNumber, leaderId: null, amount: null }
@@ -1400,7 +1400,7 @@ export default function App() {
         setPrivateNotice(`🎉 You won this bid at $${amount}!`)
         setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
       } else {
-        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${amount}. Wait for the next raise to bid again.`)
+        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${amount}.`)
         setMobileWinningNotice('')
       }
     }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
@@ -1679,19 +1679,9 @@ export default function App() {
           <p className="small">Current Bid</p>
           <div className="bid">${currentBid}</div>
 
-          <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
-            <span className={"dot " + statusKind} />
-            <span>{statusText}</span>
-          </div>
           {isGameHost && hostWinningBidMessage && (
-            <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
+            <div className="chip winningChip hostWinningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{hostWinningBidMessage}</span>
-            </div>
-          )}
-          {!isGameHost && (
-            <div className="chip balanceChip" aria-live="polite">
-              <span>Remaining funds:</span>
-              <strong>${myBalance}</strong>
             </div>
           )}
           {isMobile && mobileWinningNotice && (
@@ -1701,7 +1691,18 @@ export default function App() {
           )}
           {showMobileTopNotice && (
             <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 6 }}>
-              <span className="alertGlow">{privateNotice}</span>
+              <span>{privateNotice}</span>
+            </div>
+          )}
+
+          <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
+            <span className={"dot " + statusKind} />
+            <span>{statusText}</span>
+          </div>
+          {!isGameHost && (
+            <div className="chip balanceChip" aria-live="polite">
+              <span>Remaining funds:</span>
+              <strong>${myBalance}</strong>
             </div>
           )}
 

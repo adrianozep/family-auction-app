@@ -63,8 +63,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;border:1px solid rgba(229,231,235,.14);background:rgba(15,23,42,.35);font-size:.9rem}
 .selfNameChip{align-self:flex-start;font-size:.92rem;background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(14,165,233,.16));border-color:rgba(59,130,246,.45);box-shadow:0 8px 18px rgba(59,130,246,.18)}
 .winningChip{background:linear-gradient(135deg,rgba(34,197,94,.25),rgba(56,189,248,.22));border-color:rgba(34,197,94,.5);box-shadow:0 10px 24px rgba(34,197,94,.18)}
-.alertChip{background:linear-gradient(135deg,rgba(248,113,113,.25),rgba(248,113,113,.18));border-color:rgba(248,113,113,.55);box-shadow:0 10px 30px rgba(248,113,113,.32)}
-.alertGlow{color:#fecdd3;text-shadow:0 0 8px rgba(248,113,113,.9),0 0 12px rgba(248,113,113,.75),0 0 18px rgba(248,113,113,.55);font-weight:700}
+.alertChip{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.6);box-shadow:0 6px 14px rgba(248,113,113,.18);color:#fecdd3;font-weight:700}
+.hostWinningChip{font-size:1.05rem;font-weight:800}
 .dot{width:8px;height:8px;border-radius:999px;background:rgba(229,231,235,.5)}
 .dot.ok{background:var(--ok)}
 .dot.warn{background:var(--warn)}
