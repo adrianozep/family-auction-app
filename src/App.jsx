@@ -1224,7 +1224,7 @@ export default function App() {
         playSparkleSound()
       } else if (result.reason === 'already-claimed') {
         if (preserveWinningNotice) return
-        setPrivateNotice('Current bid is locked in. Wait for the next raise to bid again.')
+        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${result.amount}. Wait for the next raise to bid again.`)
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
       } else if (result.reason === 'no-room') {
@@ -1249,7 +1249,7 @@ export default function App() {
       : room?.roundReady && !room?.started
         ? stagedStatusText
         : room?.currentPriceHasBid
-          ? 'Current bid is locked in. Wait for the next raise to bid again.'
+          ? (isGameHost ? 'Current bid is locked in. Wait for the next raise to bid again.' : 'Waiting for the next raise')
           : 'Waiting for bids'
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const activeThemeKey = room?.theme || themeKey
@@ -1356,10 +1356,11 @@ export default function App() {
       setHostWinningBidMessage(`Current winning bid: $${amount}`)
 
       if (!isGameHost && isMobile) {
-        const message = leaderId === playerId
-          ? `✅ You’re currently winning at $${amount}`
-          : `Winning bid locked at $${amount}`
-        setMobileWinningNotice(message)
+        if (leaderId === playerId) {
+          setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
+        } else {
+          setMobileWinningNotice('')
+        }
       }
       return
     }
@@ -1394,12 +1395,13 @@ export default function App() {
       if (handledLockedBidRef.current === lockKey) return
       handledLockedBidRef.current = lockKey
 
+      const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
       if (room.leadingBid?.playerId === playerId) {
-        const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
         setPrivateNotice(`🎉 You won this bid at $${amount}!`)
         setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
       } else {
-        setPrivateNotice('⏱️ Too slow! Another player locked in the winning bid.')
+        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${amount}. Wait for the next raise to bid again.`)
+        setMobileWinningNotice('')
       }
     }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
 
