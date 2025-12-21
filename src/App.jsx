@@ -41,7 +41,11 @@ function getPlayerId(roomCode) {
   return id
 }
 
-function createEmojiBackground({ gradientFrom, gradientTo, emojis, palette = [], emojiCount = 480 }) {
+function createEmojiBackground({ gradientFrom, gradientTo, emojis, palette = [], emojiCount = 0 }) {
+  if (!emojiCount || !emojis?.length) {
+    return `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})`
+  }
+
   const width = 1600
   const height = 1600
   let swarm = ''
@@ -327,8 +331,11 @@ export default function App() {
   const lastBidSoundRef = useRef(null)
   const handledLockedBidRef = useRef(null)
   const lastLockedSoundRef = useRef(null)
-  const lastMobileWinRef = useRef({ round: null, leaderId: null, amount: null })
+  const lastWinningBidRef = useRef({ round: null, leaderId: null, amount: null })
 
+  // Host + player notices
+  const [hostWinningBidMessage, setHostWinningBidMessage] = useState('')
+  
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
   const [mobileWinningNotice, setMobileWinningNotice] = useState('')
@@ -1181,7 +1188,7 @@ export default function App() {
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
     const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
-    const MAX_PLAYERS_PER_RAIL = 12
+    const MAX_PLAYERS_PER_RAIL = 20
     const livePlayerColumns = useMemo(() => {
       const left = players.slice(0, MAX_PLAYERS_PER_RAIL)
       const right = players.slice(MAX_PLAYERS_PER_RAIL)
@@ -1252,39 +1259,40 @@ export default function App() {
   }, [room?.currentBid, room?.started, room?.roundReady, playHostRaiseTriplet])
 
   useEffect(() => {
-    if (!room || isGameHost || !isMobile) {
-      setMobileWinningNotice('')
-      lastMobileWinRef.current = { round: null, leaderId: null, amount: null }
-      return
-    }
+    if (!room) return
 
     const roundNumber = Number(room.roundNumber ?? 1)
     const hasLockedLeader = room.currentPriceHasBid && room.leadingBid?.playerId
 
-    if (!hasLockedLeader) {
-      if (lastMobileWinRef.current.round !== roundNumber) {
-        setMobileWinningNotice('')
-        lastMobileWinRef.current = { round: roundNumber, leaderId: null, amount: null }
+    if (!hasLockedLeader || room.revealedWinner) {
+      if (lastWinningBidRef.current.round !== roundNumber || room.revealedWinner) {
+        setHostWinningBidMessage('')
+        if (!isGameHost && isMobile) setMobileWinningNotice('')
+        lastWinningBidRef.current = { round: roundNumber, leaderId: null, amount: null }
       }
       return
     }
 
     const leaderId = room.leadingBid.playerId
     const amount = Number(room.leadingBid.amount ?? room.currentBid ?? 0)
+    const last = lastWinningBidRef.current
+    const changed = last.round !== roundNumber || last.leaderId !== leaderId || last.amount !== amount
 
-    if (leaderId === playerId) {
-      const last = lastMobileWinRef.current
-      if (last.round !== roundNumber || last.leaderId !== leaderId || last.amount !== amount) {
-        const message = `✅ You’re currently winning at $${amount}`
+    if (changed) {
+      lastWinningBidRef.current = { round: roundNumber, leaderId, amount }
+      setHostWinningBidMessage(`Current winning bid: $${amount}`)
+
+      if (!isGameHost && isMobile) {
+        const message = leaderId === playerId
+          ? `✅ You’re currently winning at $${amount}`
+          : `Winning bid locked at $${amount}`
         setMobileWinningNotice(message)
-        lastMobileWinRef.current = { round: roundNumber, leaderId, amount }
       }
       return
     }
 
-    if (lastMobileWinRef.current.leaderId !== leaderId || lastMobileWinRef.current.round !== roundNumber) {
-      setMobileWinningNotice('')
-      lastMobileWinRef.current = { round: roundNumber, leaderId, amount: null }
+    if (!isGameHost && isMobile && leaderId === playerId && !mobileWinningNotice) {
+      setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
     }
   }, [
     room?.currentPriceHasBid,
@@ -1292,9 +1300,11 @@ export default function App() {
     room?.leadingBid?.amount,
     room?.currentBid,
     room?.roundNumber,
+    room?.revealedWinner,
     isMobile,
     isGameHost,
     playerId,
+    mobileWinningNotice,
   ])
 
     useEffect(() => {
@@ -1598,6 +1608,11 @@ export default function App() {
             <span className={"dot " + statusKind} />
             <span>{statusText}</span>
           </div>
+          {isGameHost && hostWinningBidMessage && (
+            <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
+              <span>{hostWinningBidMessage}</span>
+            </div>
+          )}
           {!isGameHost && (
             <div className="chip balanceChip" aria-live="polite">
               <span>Remaining funds:</span>
