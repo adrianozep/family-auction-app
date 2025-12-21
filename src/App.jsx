@@ -1233,7 +1233,7 @@ export default function App() {
       if (result.ok) {
         await addDoc(bidsCol, { playerId, name: result.name, amount: result.amount, ts: serverTimestamp() })
         const winningMessage = `⚡ Winning! You locked in the bid at $${result.amount}`
-        setPrivateNotice(winningMessage)
+        setPrivateNotice('')
         if (isMobile && !isGameHost) {
           setMobileWinningNotice(winningMessage)
         }
@@ -1342,6 +1342,12 @@ export default function App() {
       !isGameHost &&
       (!isMobile || (privateNotice !== mobileWinningNotice && !showMobileTopNotice)) &&
       !(isBetweenRounds && isLockedOutNotice)
+
+    useEffect(() => {
+      if (room?.currentPriceHasBid) return
+      if (!isLockedOutNotice) return
+      setPrivateNotice('')
+    }, [room?.currentPriceHasBid, isLockedOutNotice])
 
     useEffect(() => {
       if (!showWinner && !isBetweenRounds) return
