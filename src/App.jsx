@@ -21,6 +21,10 @@ function generateRoomCode() {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
+const MAX_NAME_LENGTH = 20
+
+const clampPlayerName = (value = '') => value.slice(0, MAX_NAME_LENGTH)
+
 function formatTime(seconds) {
   const s = Math.max(0, Math.floor(Number(seconds) || 0))
   const m = Math.floor(s / 60)
@@ -328,7 +332,9 @@ export default function App() {
 
   const [joined, setJoined] = useState(isHost)
   const [landingRoomInput, setLandingRoomInput] = useState('')
-  const [name, setName] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem('auction_player_name') : '') || '')
+  const [name, setName] = useState(
+    () => (typeof localStorage !== 'undefined' ? clampPlayerName(localStorage.getItem('auction_player_name') || '') : '')
+  )
 
   const [room, setRoom] = useState(null)
   const [loadingRoom, setLoadingRoom] = useState(true)
@@ -524,7 +530,7 @@ export default function App() {
     const me = players.find((p) => p.id === playerId)
     if (me) {
       if (!joined) setJoined(true)
-      if (me.name && me.name !== name) setName(me.name)
+      if (me.name && me.name !== name) setName(clampPlayerName(me.name))
     }
   }, [players, playerId, isHost, joined, name])
 
@@ -881,7 +887,7 @@ export default function App() {
 
   // Join player
   const joinRoom = async () => {
-    const trimmedName = name.trim()
+    const trimmedName = clampPlayerName(name.trim())
     const trimmedRoomCode = roomCode.trim().toUpperCase()
     if (!trimmedName) return
     if (!trimmedRoomCode) return
@@ -1584,7 +1590,7 @@ export default function App() {
         <div className="app">
           <div className="card" style={{ maxWidth: 520 }}>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
-            <p className="small">Enter your room code first, then add your name to join.</p>
+            <p className="small">Enter your room code first, then add your name to join (max 20 characters).</p>
             <div className="row" style={{ marginTop: 10 }}>
               <input
                 value={roomCode}
@@ -1594,7 +1600,12 @@ export default function App() {
               />
             </div>
             <div className="row" style={{ marginTop: 10 }}>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+              <input
+                value={name}
+                onChange={(e) => setName(clampPlayerName(e.target.value))}
+                placeholder="Your name"
+                maxLength={MAX_NAME_LENGTH}
+              />
               <button onClick={joinRoom}>Join Room</button>
             </div>
           </div>
