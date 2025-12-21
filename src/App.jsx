@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode.react'
-import { configError, db } from './firebase.js'
+import { db } from './firebase.js'
 import { createBidWhistle, createCountdownBeeps, createHostRaiseTriplet, createHostRaiseWhistle } from './audio.js'
 import {
   collection,
@@ -314,19 +314,6 @@ export default function App() {
     return () => window.removeEventListener('resize', updateScale)
   }, [])
 
-  if (configError) {
-    return (
-      <div className="app">
-        <div className="card">
-          <h1>Family Auction</h1>
-          <p className="small">We could not start the game because the Firebase connection is missing.</p>
-          <p className="small">Add the VITE_FIREBASE_* environment values (or a .env.local file) and reload to continue.</p>
-          <code className="small">{String(configError.message || configError)}</code>
-        </div>
-      </div>
-    )
-  }
-
   const playerId = useMemo(() => getPlayerId(roomCode), [roomCode])
 
   const hostNoticeKey = useMemo(() => (roomCode ? `auction_host_notice_${roomCode}` : ''), [roomCode])
@@ -345,7 +332,7 @@ export default function App() {
 
   const [room, setRoom] = useState(null)
   const [loadingRoom, setLoadingRoom] = useState(true)
-  const roomRef = useMemo(() => (roomCode && db ? doc(db, 'rooms', roomCode) : null), [roomCode, db])
+  const roomRef = useMemo(() => (roomCode ? doc(db, 'rooms', roomCode) : null), [roomCode])
   const isGameHost = (room?.hostId && room.hostId === playerId) || isHost
 
   useEffect(() => {
@@ -506,7 +493,7 @@ export default function App() {
 
   // Subscribe to players realtime (everyone sees arrivals live)
   useEffect(() => {
-    if (!roomCode || !db) return undefined
+    if (!roomCode) return undefined
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const unsub = onSnapshot(playersRef, (snap) => {
       const list = snap.docs
@@ -516,7 +503,7 @@ export default function App() {
       setPlayers(list)
     })
     return () => unsub()
-  }, [roomCode, db])
+  }, [roomCode])
 
   useEffect(() => {
     if (isHost) return
