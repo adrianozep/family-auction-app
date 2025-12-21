@@ -337,11 +337,11 @@ export default function App() {
 
   useEffect(() => {
     if (!roomRef) setLoadingRoom(false)
-  }, [roomRef])
+  }, [roomRef, isHost])
 
   useEffect(() => {
     setTimerHydrated(false)
-  }, [roomRef])
+  }, [roomRef, isHost])
 
   const [timeLeft, setTimeLeft] = useState(0)
   const [timerHydrated, setTimerHydrated] = useState(false)
@@ -472,6 +472,19 @@ export default function App() {
         setLoadingRoom(false)
         if (!snap.exists()) {
           setRoom(null)
+          setPlayers([])
+          if (!isHost) {
+            setJoined(false)
+            setPrivateNotice('')
+            setMobileWinningNotice('')
+            setName('')
+            try {
+              if (typeof localStorage !== 'undefined') {
+                localStorage.removeItem('auction_player_name')
+                localStorage.removeItem('auction_last_room')
+              }
+            } catch {}
+          }
           return
         }
         setRoom({ id: snap.id, ...snap.data() })
@@ -479,7 +492,7 @@ export default function App() {
       () => setLoadingRoom(false)
     )
     return () => unsub()
-  }, [roomRef])
+  }, [roomRef, isHost])
 
   // Subscribe to players realtime (everyone sees arrivals live)
   useEffect(() => {
@@ -1250,7 +1263,7 @@ export default function App() {
       ? 'Round is staged. Update settings and tap Start Round when ready.'
       : 'Waiting for the next round to start'
     const lockedBidMessage = 'Wait for the next raise to bid again.'
-    const statusText = showWinner
+    const baseStatusText = showWinner
       ? room?.revealedWinner?.name
         ? `${room.revealedWinner.name} won this round at $${room.revealedWinner.amount}`
         : 'Round finished.'
@@ -1259,6 +1272,9 @@ export default function App() {
         : room?.currentPriceHasBid
           ? lockedBidMessage
           : 'Waiting for bids'
+    const statusText = baseStatusText === 'Waiting for bids' && (isGameHost || isMobile)
+      ? ''
+      : baseStatusText
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const isLeadingPlayer = room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId
     const currentWinningBidAmount = Number(room?.leadingBid?.amount ?? room?.currentBid ?? 0)
@@ -1404,27 +1420,22 @@ export default function App() {
 
     const roundNumber = Number(room.roundNumber ?? 1)
     const hasLockedLeader = room.currentPriceHasBid && room.leadingBid?.playerId
+    const leaderId = hasLockedLeader ? room.leadingBid.playerId : null
+    const amount = hasLockedLeader ? Number(room.leadingBid.amount ?? room.currentBid ?? 0) : null
+    const last = lastWinningBidRef.current
+    const roundChanged = last.round !== roundNumber
 
-    if (!hasLockedLeader) {
+    if (roundChanged) {
       lastWinningBidRef.current = { round: roundNumber, leaderId: null, amount: null }
-      setHostWinningBidMessage('')
-      if (isMobile) {
-        if (!isGameHost && room?.leadingBid?.playerId === playerId && mobileWinningNotice) {
-          // Preserve the winning notice for the current leader until a new winner appears.
-        } else {
-          setMobileWinningNotice('')
-        }
-      }
-      return
     }
 
-    const leaderId = room.leadingBid.playerId
-    const amount = Number(room.leadingBid.amount ?? room.currentBid ?? 0)
-    const last = lastWinningBidRef.current
-    const changed = last.round !== roundNumber || last.leaderId !== leaderId || last.amount !== amount
+    if (hasLockedLeader) {
+      const changed = roundChanged || last.leaderId !== leaderId || last.amount !== amount
 
-    if (changed) {
-      lastWinningBidRef.current = { round: roundNumber, leaderId, amount }
+      if (changed) {
+        lastWinningBidRef.current = { round: roundNumber, leaderId, amount }
+      }
+
       setHostWinningBidMessage(`Current winning bid: $${amount}`)
 
       if (!isGameHost && isMobile) {
@@ -1437,12 +1448,24 @@ export default function App() {
       return
     }
 
-    if (!isGameHost && isMobile && leaderId === playerId && !mobileWinningNotice) {
-      setMobileWinningNotice(`⚡ Winning! You locked in the bid at $${amount}`)
+    if (!isGameHost && isMobile) {
+      if (room?.leadingBid?.playerId === playerId && mobileWinningNotice) {
+        // Preserve the winning notice for the current leader until a new winner appears.
+      } else {
+        setMobileWinningNotice('')
+      }
     }
 
-    if (isGameHost && hostWinningBidMessage !== `Current winning bid: $${amount}`) {
-      setHostWinningBidMessage(`Current winning bid: $${amount}`)
+    const cachedAmount = lastWinningBidRef.current.amount
+    if (isGameHost && cachedAmount !== null) {
+      if (hostWinningBidMessage !== `Current winning bid: $${cachedAmount}`) {
+        setHostWinningBidMessage(`Current winning bid: $${cachedAmount}`)
+      }
+      return
+    }
+
+    if (isGameHost) {
+      setHostWinningBidMessage('')
     }
   }, [
     room?.currentPriceHasBid,
@@ -1803,10 +1826,12 @@ export default function App() {
             </div>
           )}
 
-          <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
-            <span className={"dot " + statusKind} />
-            <span>{statusText}</span>
-          </div>
+          {statusText && (
+            <div className="chip" style={{ marginTop: 8 }} aria-live="polite">
+              <span className={"dot " + statusKind} />
+              <span>{statusText}</span>
+            </div>
+          )}
           {!isGameHost && (
             <div className="chip balanceChip" aria-live="polite">
               <span>Remaining funds:</span>
