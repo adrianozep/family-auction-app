@@ -1204,8 +1204,9 @@ export default function App() {
   const playerBid = async () => {
     if (!room?.started) return
     if (!roomRef) return
-    if (timeLeft <= 1) {
-      setPrivateNotice('⏱️ Bidding is closed for the final second of the round.')
+    if (timeLeft <= 0) return
+    if (isMobile && timeLeft <= 1) {
+      setPrivateNotice('⏱️ Mobile bidding is closed for the final second of the round.')
       return
     }
 
@@ -1788,6 +1789,12 @@ export default function App() {
           <p className="small">Current Bid</p>
           <div className="bid">${currentBid}</div>
 
+          {isMobile && isNewBidAlert && !isGameHost && room?.started && !showWinner && !isBetweenRounds && (
+            <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 6 }}>
+              <span>{privateNotice}</span>
+            </div>
+          )}
+
           {isGameHost && hostWinningBidMessage && (
             <div className="chip winningChip hostWinningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{hostWinningBidMessage}</span>
@@ -1796,11 +1803,6 @@ export default function App() {
           {isMobile && mobileWinningNotice && !showWinner && (
             <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{mobileWinningNotice}</span>
-            </div>
-          )}
-          {isMobile && isNewBidAlert && !isGameHost && room?.started && !showWinner && !isBetweenRounds && (
-            <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 6 }}>
-              <span>{privateNotice}</span>
             </div>
           )}
           {showMobileTopNotice && (
@@ -1868,7 +1870,13 @@ export default function App() {
             <div className="controlsRow">
               <div className="controlBox" style={{ width: '100%', alignItems: 'flex-start' }}>
                 <div className="boxTitle">Your Move</div>
-                <button className="primaryBidButton" onClick={playerBid} disabled={timeLeft <= 0}>Bid ${currentBid}</button>
+                <button
+                  className="primaryBidButton"
+                  onClick={playerBid}
+                  disabled={timeLeft <= 0 || (isMobile && timeLeft <= 1)}
+                >
+                  Bid ${currentBid}
+                </button>
               </div>
             </div>
           </>
