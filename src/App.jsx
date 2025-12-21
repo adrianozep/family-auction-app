@@ -21,7 +21,7 @@ function generateRoomCode() {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
-const MAX_NAME_LENGTH = 20
+const MAX_NAME_LENGTH = 15
 
 const clampPlayerName = (value = '') => value.slice(0, MAX_NAME_LENGTH)
 
@@ -1590,7 +1590,7 @@ export default function App() {
         <div className="app">
           <div className="card" style={{ maxWidth: 520 }}>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
-            <p className="small">Enter your room code first, then add your name to join (max 20 characters).</p>
+            <p className="small">Enter your room code first, then add your name to join (max 15 characters).</p>
             <div className="row" style={{ marginTop: 10 }}>
               <input
                 value={roomCode}
