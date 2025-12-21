@@ -1219,7 +1219,7 @@ export default function App() {
 
       if (result.ok) {
         await addDoc(bidsCol, { playerId, name: result.name, amount: result.amount, ts: serverTimestamp() })
-        const winningMessage = `⚡ You're Fast! You locked in the bid at $${result.amount}`
+        const winningMessage = `⚡ Winning! You locked in the bid at $${result.amount}`
         setPrivateNotice(winningMessage)
         if (isMobile && !isGameHost) {
           setMobileWinningNotice(winningMessage)
@@ -1228,7 +1228,7 @@ export default function App() {
         playSparkleSound()
       } else if (result.reason === 'already-claimed') {
         if (preserveWinningNotice) return
-        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${result.amount}.`)
+        setPrivateNotice(`⏱️ Too slow! Someone locked in the winning bid at $${result.amount}.`)
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
       } else if (result.reason === 'no-room') {
@@ -1382,13 +1382,8 @@ export default function App() {
     const hasLockedLeader = room.currentPriceHasBid && room.leadingBid?.playerId
 
     if (!hasLockedLeader) {
-      const fallbackAmount = Number(room?.currentBid ?? 0)
       lastWinningBidRef.current = { round: roundNumber, leaderId: null, amount: null }
-      setHostWinningBidMessage(`Current winning bid: $${fallbackAmount}`)
-
-      if (isMobile) {
-        setMobileWinningNotice('')
-      }
+      setHostWinningBidMessage('')
       return
     }
 
@@ -1403,7 +1398,7 @@ export default function App() {
 
       if (!isGameHost && isMobile) {
         if (leaderId === playerId) {
-          setMobileWinningNotice(`⚡ You're Fast! You locked in the bid at $${amount}`)
+          setMobileWinningNotice(`⚡ Winning! You locked in the bid at $${amount}`)
         } else {
           setMobileWinningNotice('')
         }
@@ -1412,7 +1407,7 @@ export default function App() {
     }
 
     if (!isGameHost && isMobile && leaderId === playerId && !mobileWinningNotice) {
-      setMobileWinningNotice(`⚡ You're Fast! You locked in the bid at $${amount}`)
+      setMobileWinningNotice(`⚡ Winning! You locked in the bid at $${amount}`)
     }
 
     if (isGameHost && hostWinningBidMessage !== `Current winning bid: $${amount}`) {
@@ -1449,9 +1444,9 @@ export default function App() {
       const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
       if (room.leadingBid?.playerId === playerId) {
         setPrivateNotice(`🎉 You won this bid at $${amount}!`)
-        setMobileWinningNotice(`⚡ You're Fast! You locked in the bid at $${amount}`)
+        setMobileWinningNotice(`⚡ Winning! You locked in the bid at $${amount}`)
       } else {
-        setPrivateNotice(`⏱️ Too slow! Another player locked in the winning bid at $${amount}.`)
+        setPrivateNotice(`⏱️ Too slow! Someone locked in the winning bid at $${amount}.`)
         setMobileWinningNotice('')
       }
     }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
@@ -1557,6 +1552,12 @@ export default function App() {
             <div className="pill">Round {roundNumber}</div>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
             <p className="small">Timer hit zero — here are the winning results.</p>
+
+            {isMobile && mobileWinningNotice && (
+              <div className="chip winningChip" aria-live="polite" style={{ marginTop: 10 }}>
+                <span>{mobileWinningNotice}</span>
+              </div>
+            )}
 
             <div className="scoreboard" style={{ marginTop: 10 }}>
               <div className="boxTitle">Winning Results</div>
