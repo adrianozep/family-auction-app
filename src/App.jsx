@@ -475,6 +475,7 @@ export default function App() {
             setPrivateNotice('')
             setMobileWinningNotice('')
             setName('')
+            setRoomCode('')
             try {
               if (typeof localStorage !== 'undefined') {
                 localStorage.removeItem('auction_player_name')
@@ -879,15 +880,13 @@ export default function App() {
       const snap = await tx.get(roomDocRef)
       if (!snap.exists()) return
       const playerSnap = await tx.get(targetRoomRef)
-      const roomData = snap.exists() ? snap.data() : {}
       const existing = playerSnap.exists() ? playerSnap.data() : {}
-      const baseFunds = Math.max(0, Number(roomData?.startingFunds ?? room?.startingFunds ?? startingFunds ?? 400))
       tx.set(
         targetRoomRef,
         {
           name: trimmedName,
           joinedAt: serverTimestamp(),
-          balance: existing?.balance ?? baseFunds,
+          balance: existing?.balance ?? 0,
         },
         { merge: true }
       )
@@ -1077,7 +1076,7 @@ export default function App() {
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(pRef)
       if (!snap.exists()) return
-      const current = Number(snap.data()?.balance ?? room?.startingFunds ?? 0)
+      const current = Number(snap.data()?.balance ?? 0)
       const next = Math.max(0, current + change)
       tx.update(pRef, { balance: next })
     })
@@ -1207,18 +1206,17 @@ export default function App() {
     const bidsCol = collection(db, 'rooms', roomCode, 'bids')
     const bidMoment = nowMs()
 
-    try {
-      const result = await runTransaction(db, async (tx) => {
-        const snap = await tx.get(roomRef)
-        if (!snap.exists()) return { ok:false, reason:'no-room' }
-        const data = snap.data()
-        const current = Number(data.currentBid ?? 0)
+      try {
+        const result = await runTransaction(db, async (tx) => {
+          const snap = await tx.get(roomRef)
+          if (!snap.exists()) return { ok:false, reason:'no-room' }
+          const data = snap.data()
+          const current = Number(data.currentBid ?? 0)
 
-        const pSnap = await tx.get(pRef)
-        const pName = (pSnap.exists() && pSnap.data().name) ? pSnap.data().name : 'Player'
-        const starting = Number(data.startingFunds ?? startingFunds ?? 0)
-        const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
-        if (balance < current) return { ok:false, reason:'insufficient', amount: current, balance }
+          const pSnap = await tx.get(pRef)
+          const pName = (pSnap.exists() && pSnap.data().name) ? pSnap.data().name : 'Player'
+          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : 0
+          if (balance < current) return { ok:false, reason:'insufficient', amount: current, balance }
 
         const alreadyClaimed = data.currentPriceHasBid && Number(data.leadingBid?.amount ?? 0) === current
         if (alreadyClaimed) return { ok:false, reason:'already-claimed', amount: current, name: data.leadingBid?.name }
@@ -1276,6 +1274,7 @@ export default function App() {
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const isLeadingPlayer = room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId
     const isLockedOutNotice = !!privateNotice && privateNotice.toLowerCase().includes('too slow! someone locked in the bid')
+    const isNewBidAlert = privateNotice === '📢 New bid alert! Bid now!'
     const roundNumber = Number(room?.roundNumber ?? 1)
     const hasEstablishedWinningBid =
       lastWinningBidRef.current.round === roundNumber && lastWinningBidRef.current.amount !== null
@@ -1292,7 +1291,7 @@ export default function App() {
     const showQrDetails = !isMobile || !room?.started || showWinner
     const activeThemeKey = room?.theme || themeKey
     const you = players.find((p) => p.id === playerId)
-    const myBalance = Math.max(0, Math.round(Number(you?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
+    const myBalance = Math.max(0, Math.round(Number(you?.balance ?? 0)))
     const MAX_PLAYERS_PER_RAIL = 20
     const livePlayerColumns = useMemo(() => {
       const left = players.slice(0, MAX_PLAYERS_PER_RAIL)
@@ -1309,7 +1308,7 @@ export default function App() {
               <div key={p.id} className="playerRailChip">
                 <div className="playerRailHeader">
                   <div className="playerRailName">{p.name || 'Player'}</div>
-                  <div className="playerRailBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                  <div className="playerRailBalance">${Math.max(0, Math.round(Number(p.balance ?? 0)))}</div>
                 </div>
                 {isGameHost && (
                   <div className="playerRailActions">
@@ -1341,7 +1340,8 @@ export default function App() {
       privateNotice &&
       !isGameHost &&
       (!isMobile || (privateNotice !== mobileWinningNotice && !showMobileTopNotice)) &&
-      !(isBetweenRounds && isLockedOutNotice)
+      !(isBetweenRounds && isLockedOutNotice) &&
+      !(isMobile && isNewBidAlert)
 
     useEffect(() => {
       if (room?.currentPriceHasBid) return
@@ -1373,8 +1373,7 @@ export default function App() {
 
           const pRef = doc(db, 'rooms', roomCode, 'players', winner.playerId)
           const pSnap = await tx.get(pRef)
-          const starting = Number(data.startingFunds ?? 0)
-          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : starting
+          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : 0
           const deduction = Math.max(0, Number(winner.amount || 0))
           const newBalance = Math.max(0, balance - deduction)
 
@@ -1384,7 +1383,7 @@ export default function App() {
       }
 
       applyWinnerDeduction()
-    }, [showWinner, isGameHost, roomRef, roomCode, room?.revealedWinner?.playerId, room?.revealedWinner?.amount, room?.revealedWinner?.deducted, room?.startingFunds])
+      }, [showWinner, isGameHost, roomRef, roomCode, room?.revealedWinner?.playerId, room?.revealedWinner?.amount, room?.revealedWinner?.deducted])
 
   useEffect(() => {
     if (!room) return
@@ -1588,10 +1587,10 @@ export default function App() {
       )
     }
 
-    if (showWinner) {
-      const winnerPlayer = players.find((p) => p.id === room?.revealedWinner?.playerId)
-      const winnerBalance = Math.max(0, Math.round(Number(winnerPlayer?.balance ?? room?.startingFunds ?? startingFunds ?? 0)))
-      return (
+      if (showWinner) {
+        const winnerPlayer = players.find((p) => p.id === room?.revealedWinner?.playerId)
+        const winnerBalance = Math.max(0, Math.round(Number(winnerPlayer?.balance ?? 0)))
+        return (
         <div className={`app scorePage${isFullscreen ? ' isFullscreen' : ''}`}>
           {renderPlayerRail(livePlayerColumns.left, 'left')}
 
@@ -1600,12 +1599,6 @@ export default function App() {
             <div className="pill">Round {roundNumber}</div>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
             <p className="small">Timer hit zero — here are the winning results.</p>
-
-            {isMobile && mobileWinningNotice && (
-              <div className="chip winningChip" aria-live="polite" style={{ marginTop: 10 }}>
-                <span>{mobileWinningNotice}</span>
-              </div>
-            )}
 
             <div className="scoreboard" style={{ marginTop: 10 }}>
               <div className="boxTitle">Winning Results</div>
@@ -1695,7 +1688,7 @@ export default function App() {
                 {players.map((p) => (
                   <div key={p.id} className="playerChip">
                     <div className="playerChipName">{p.name}</div>
-                    <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? room?.startingFunds ?? startingFunds ?? 0)))}</div>
+                      <div className="playerChipBalance">${Math.max(0, Math.round(Number(p.balance ?? 0)))}</div>
                     {isGameHost && (
                       <div className="row fundButtons" style={{ marginTop: 6 }}>
                         <input
@@ -1789,6 +1782,11 @@ export default function App() {
           {isMobile && mobileWinningNotice && !showWinner && (
             <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{mobileWinningNotice}</span>
+            </div>
+          )}
+          {isMobile && isNewBidAlert && !isGameHost && room?.started && !showWinner && !isBetweenRounds && (
+            <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 6 }}>
+              <span>{privateNotice}</span>
             </div>
           )}
           {showMobileTopNotice && (
