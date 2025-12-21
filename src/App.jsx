@@ -1228,7 +1228,7 @@ export default function App() {
         playSparkleSound()
       } else if (result.reason === 'already-claimed') {
         if (preserveWinningNotice) return
-        setPrivateNotice(`⏱️ Too slow! Someone locked in the winning bid at $${result.amount}.`)
+        setPrivateNotice(`⏱️ Too slow! Someone locked in the bid at $${result.amount}.`)
       } else if (result.reason === 'insufficient') {
         setPrivateNotice(`❌ Not enough funds for $${result.amount}. Balance: $${Math.max(0, Math.round(result.balance ?? 0))}`)
       } else if (result.reason === 'no-room') {
@@ -1265,6 +1265,7 @@ export default function App() {
       !showWinner &&
       room?.currentPriceHasBid &&
       room?.leadingBid?.playerId !== playerId
+    const showQrDetails = !isMobile || !room?.started || showWinner
     const activeThemeKey = room?.theme || themeKey
     const roundNumber = Number(room?.roundNumber ?? 1)
     const you = players.find((p) => p.id === playerId)
@@ -1312,8 +1313,7 @@ export default function App() {
       </div>
     )
     const showLivePlayers = !isGameHost && !isMobile
-    const isLockedOutNotice =
-      !!privateNotice && privateNotice.toLowerCase().includes('another player locked in the winning bid')
+    const isLockedOutNotice = !!privateNotice && privateNotice.toLowerCase().includes('too slow! someone locked in the bid')
     const showMobileTopNotice = isMobile && !isGameHost && isLockedOutNotice
     const shouldShowBottomNotice =
       privateNotice &&
@@ -1358,7 +1358,7 @@ export default function App() {
 
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
       if (!isGameHost) {
-        setPrivateNotice(`📢 New bid alert! Current price is $${current}.`)
+        setPrivateNotice('📢 New bid alert! Bid now!')
         playHostRaiseTriplet()
       }
     }
@@ -1384,6 +1384,9 @@ export default function App() {
     if (!hasLockedLeader) {
       lastWinningBidRef.current = { round: roundNumber, leaderId: null, amount: null }
       setHostWinningBidMessage('')
+      if (isMobile) {
+        setMobileWinningNotice('')
+      }
       return
     }
 
@@ -1443,10 +1446,9 @@ export default function App() {
 
       const amount = Number(room.leadingBid?.amount ?? room.currentBid ?? 0)
       if (room.leadingBid?.playerId === playerId) {
-        setPrivateNotice(`🎉 You won this bid at $${amount}!`)
         setMobileWinningNotice(`⚡ Winning! You locked in the bid at $${amount}`)
       } else {
-        setPrivateNotice(`⏱️ Too slow! Someone locked in the winning bid at $${amount}.`)
+        setPrivateNotice(`⏱️ Too slow! Someone locked in the bid at $${amount}.`)
         setMobileWinningNotice('')
       }
     }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
@@ -1675,13 +1677,15 @@ export default function App() {
           </div>
         )}
 
-        <div className="joinSection" style={{ width: '100%' }}>
-          <div className="qrWrap">
-            <QRCode value={joinUrl} size={140} />
-            <p className="small">Scan to open the join page.</p>
-            <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
+        {showQrDetails && (
+          <div className="joinSection" style={{ width: '100%' }}>
+            <div className="qrWrap">
+              <QRCode value={joinUrl} size={140} />
+              <p className="small">Scan to open the join page.</p>
+              <div className="roomCodeDisplay" aria-label="Room code">{roomCode}</div>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="row" style={{ gap: 8, justifyContent: 'center', width: '100%' }}>
           {isGameHost && !soundsEnabled && (
@@ -1736,9 +1740,6 @@ export default function App() {
               <span>{hostWinningBidMessage}</span>
             </div>
           )}
-          {isGameHost && room?.currentPriceHasBid && (
-            <p className="small" style={{ marginTop: 6 }}>Wait for the next raise to bid again.</p>
-          )}
           {isMobile && mobileWinningNotice && (
             <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{mobileWinningNotice}</span>
@@ -1786,9 +1787,17 @@ export default function App() {
           </div>
 
           {shouldShowBottomNotice && (
-            <p className="small" aria-live="polite" style={{ marginTop: 8 }}>
-              {privateNotice}
-            </p>
+            privateNotice === '📢 New bid alert! Bid now!' || isLockedOutNotice
+              ? (
+                <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 8 }}>
+                  <span>{privateNotice}</span>
+                </div>
+                )
+              : (
+                <p className="small" aria-live="polite" style={{ marginTop: 8 }}>
+                  {privateNotice}
+                </p>
+                )
           )}
 
         </div>
