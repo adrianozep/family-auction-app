@@ -1269,22 +1269,27 @@ export default function App() {
         : room?.currentPriceHasBid
           ? lockedBidMessage
           : 'Waiting for bids'
-    const statusText = baseStatusText === 'Waiting for bids' && (isGameHost || isMobile)
+    const statusText = (isLockedOutNotice && !isGameHost)
       ? ''
-      : baseStatusText
+      : baseStatusText === 'Waiting for bids' && (isGameHost || isMobile)
+        ? ''
+        : baseStatusText
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const isLeadingPlayer = room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId
     const roundNumber = Number(room?.roundNumber ?? 1)
     const hasEstablishedWinningBid =
       lastWinningBidRef.current.round === roundNumber && lastWinningBidRef.current.amount !== null
-    const currentWinningBidAmount = Number(room?.currentBid ?? 0)
+    const currentWinningBidAmount = hasEstablishedWinningBid
+      ? Number(lastWinningBidRef.current.amount ?? 0)
+      : 0
     const showCurrentWinningBidChip =
       isMobile &&
       !isGameHost &&
       !showWinner &&
       hasEstablishedWinningBid &&
       room?.leadingBid?.playerId &&
-      room?.leadingBid?.playerId !== playerId
+      room?.leadingBid?.playerId !== playerId &&
+      !isLockedOutNotice
     const showQrDetails = !isMobile || !room?.started || showWinner
     const activeThemeKey = room?.theme || themeKey
     const you = players.find((p) => p.id === playerId)
@@ -1373,7 +1378,7 @@ export default function App() {
   useEffect(() => {
     if (!room) return
     const current = Number(room.currentBid ?? 0)
-    const hasStarted = room.started || room.roundReady
+    const hasStarted = room.started
 
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
       if (!isGameHost) {
@@ -1382,17 +1387,17 @@ export default function App() {
       }
     }
     previousBidRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playHostRaiseTriplet])
+  }, [room?.currentBid, room?.started, isGameHost, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
     const current = Number(room.currentBid ?? 0)
-    const hasStarted = room.started || room.roundReady
+    const hasStarted = room.started
     if (lastBidSoundRef.current !== null && current > lastBidSoundRef.current && hasStarted) {
       playHostRaiseTriplet()
     }
     lastBidSoundRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, playHostRaiseTriplet])
+  }, [room?.currentBid, room?.started, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
@@ -1584,12 +1589,6 @@ export default function App() {
             <div className="pill">Round {roundNumber}</div>
             <h1>{room?.title || gameTitle || 'Auction Game'}</h1>
             <p className="small">Timer hit zero — here are the winning results.</p>
-
-            {isMobile && mobileWinningNotice && (
-              <div className="chip winningChip" aria-live="polite" style={{ marginTop: 10 }}>
-                <span>{mobileWinningNotice}</span>
-              </div>
-            )}
 
             <div className="scoreboard" style={{ marginTop: 10 }}>
               <div className="boxTitle">Winning Results</div>
