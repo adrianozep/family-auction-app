@@ -339,6 +339,7 @@ export default function App() {
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState('')
   const [mobileWinningNotice, setMobileWinningNotice] = useState('')
+  const autoJoinAttemptedRef = useRef(null)
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
@@ -828,7 +829,17 @@ export default function App() {
     }
   }
 
-    // Host actions
+  useEffect(() => {
+    if (isGameHost) return
+    if (!joinLanding) return
+    if (joined) return
+    if (!roomCode || !name) return
+    if (autoJoinAttemptedRef.current === roomCode) return
+    autoJoinAttemptedRef.current = roomCode
+    joinRoom()
+  }, [isGameHost, joinLanding, joined, roomCode, name])
+
+  // Host actions
   const buildTimerState = (durationSec) => {
     const duration = Math.max(1, Math.floor(Number(durationSec) || 60))
     const end = nowMs() + duration * 1000
@@ -1231,8 +1242,13 @@ export default function App() {
       </div>
     )
     const showLivePlayers = !isGameHost && !isMobile
+    const isLockedOutNotice =
+      !!privateNotice && privateNotice.toLowerCase().includes('another player locked in the winning bid')
+    const showMobileTopNotice = isMobile && !isGameHost && isLockedOutNotice
     const shouldShowBottomNotice =
-      privateNotice && !isGameHost && (!isMobile || privateNotice !== mobileWinningNotice)
+      privateNotice &&
+      !isGameHost &&
+      (!isMobile || (privateNotice !== mobileWinningNotice && !showMobileTopNotice))
 
   useEffect(() => {
     if (!room) return
@@ -1326,7 +1342,7 @@ export default function App() {
         setPrivateNotice(`🎉 You won this bid at $${amount}!`)
         setMobileWinningNotice(`✅ You’re currently winning at $${amount}`)
       } else {
-        setPrivateNotice('⏱️ Too slow! Another player locked in this bid.')
+        setPrivateNotice('⏱️ Too slow! Another player locked in the winning bid.')
       }
     }, [room?.currentPriceHasBid, room?.leadingBid?.playerId, room?.leadingBid?.tsMs, room?.leadingBid?.amount, room?.currentBid, isGameHost, isMobile, playerId])
 
@@ -1622,6 +1638,11 @@ export default function App() {
           {isMobile && mobileWinningNotice && (
             <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{mobileWinningNotice}</span>
+            </div>
+          )}
+          {showMobileTopNotice && (
+            <div className="chip alertChip" aria-live="assertive" style={{ marginTop: 6 }}>
+              <span className="alertGlow">{privateNotice}</span>
             </div>
           )}
 
