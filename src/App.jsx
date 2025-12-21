@@ -67,6 +67,28 @@ function createEmojiBackground({ gradientFrom, gradientTo, emojis, palette = [],
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 }
 
+function readStoredValue(key) {
+  if (!key) return ''
+  if (typeof localStorage === 'undefined') return ''
+  try {
+    return localStorage.getItem(key) || ''
+  } catch {
+    return ''
+  }
+}
+
+function persistStoredValue(key, value) {
+  if (!key) return
+  if (typeof localStorage === 'undefined') return
+  try {
+    if (value) {
+      localStorage.setItem(key, value)
+    } else {
+      localStorage.removeItem(key)
+    }
+  } catch {}
+}
+
 const THEMES = {
   classic: {
     label: 'Classic Night',
@@ -82,6 +104,7 @@ const THEMES = {
         gradientTo: '#2b1b63',
         emojis: ['✦', '✸', '✷', '✺', '✧'],
         palette: ['#c7d2fe', '#bfdbfe', '#fde68a', '#f97316'],
+        emojiCount: 350,
       }),
     },
   },
@@ -99,6 +122,7 @@ const THEMES = {
         gradientTo: '#d11d1d',
         emojis: ['✶', '✴', '✵', '✷', '✦', '✺'],
         palette: ['#fecdd3', '#fef08a', '#bbf7d0', '#bfdbfe'],
+        emojiCount: 350,
       }),
     },
   },
@@ -116,6 +140,7 @@ const THEMES = {
         gradientTo: '#4c1d95',
         emojis: ['⬣', '◆', '◇', '⬢', '⬡', '✦', '✧', '✩'],
         palette: ['#fcd34d', '#f472b6', '#a78bfa', '#34d399'],
+        emojiCount: 350,
       }),
     },
   },
@@ -133,6 +158,7 @@ const THEMES = {
         gradientTo: '#f59e0b',
         emojis: ['✦', '✸', '✹', '✺', '✼', '✻', '✳', '✴'],
         palette: ['#fde68a', '#fca5a5', '#93c5fd', '#c4b5fd'],
+        emojiCount: 350,
       }),
     },
   },
@@ -150,6 +176,7 @@ const THEMES = {
         gradientTo: '#a855f7',
         emojis: ['✦', '✴', '✹', '✷', '✼', '✵', '✸', '✧'],
         palette: ['#c7d2fe', '#bae6fd', '#fecdd3', '#bbf7d0'],
+        emojiCount: 350,
       }),
     },
   },
@@ -289,6 +316,16 @@ export default function App() {
 
   const playerId = useMemo(() => getPlayerId(roomCode), [roomCode])
 
+  const hostNoticeKey = useMemo(() => (roomCode ? `auction_host_notice_${roomCode}` : ''), [roomCode])
+  const privateNoticeKey = useMemo(
+    () => (roomCode && playerId ? `auction_private_notice_${roomCode}_${playerId}` : ''),
+    [roomCode, playerId]
+  )
+  const mobileNoticeKey = useMemo(
+    () => (roomCode && playerId ? `auction_mobile_notice_${roomCode}_${playerId}` : ''),
+    [roomCode, playerId]
+  )
+
   const [joined, setJoined] = useState(isHost)
   const [landingRoomInput, setLandingRoomInput] = useState('')
   const [name, setName] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem('auction_player_name') : '') || '')
@@ -334,11 +371,11 @@ export default function App() {
   const lastWinningBidRef = useRef({ round: null, leaderId: null, amount: null })
 
   // Host + player notices
-  const [hostWinningBidMessage, setHostWinningBidMessage] = useState('')
-  
+  const [hostWinningBidMessage, setHostWinningBidMessage] = useState(() => readStoredValue(hostNoticeKey))
+
   // Player private notice
-  const [privateNotice, setPrivateNotice] = useState('')
-  const [mobileWinningNotice, setMobileWinningNotice] = useState('')
+  const [privateNotice, setPrivateNotice] = useState(() => readStoredValue(privateNoticeKey))
+  const [mobileWinningNotice, setMobileWinningNotice] = useState(() => readStoredValue(mobileNoticeKey))
   const autoJoinAttemptedRef = useRef(null)
 
   useEffect(() => {
@@ -350,6 +387,25 @@ export default function App() {
     if (typeof localStorage === 'undefined') return
     if (name) localStorage.setItem('auction_player_name', name)
   }, [name])
+
+  useEffect(() => {
+    if (!roomCode) return
+    setHostWinningBidMessage(readStoredValue(hostNoticeKey))
+    setPrivateNotice(readStoredValue(privateNoticeKey))
+    setMobileWinningNotice(readStoredValue(mobileNoticeKey))
+  }, [roomCode, playerId, hostNoticeKey, privateNoticeKey, mobileNoticeKey])
+
+  useEffect(() => {
+    persistStoredValue(hostNoticeKey, hostWinningBidMessage)
+  }, [hostNoticeKey, hostWinningBidMessage])
+
+  useEffect(() => {
+    persistStoredValue(privateNoticeKey, privateNotice)
+  }, [privateNoticeKey, privateNotice])
+
+  useEffect(() => {
+    persistStoredValue(mobileNoticeKey, mobileWinningNotice)
+  }, [mobileNoticeKey, mobileWinningNotice])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 820px)')
@@ -832,12 +888,13 @@ export default function App() {
   useEffect(() => {
     if (isGameHost) return
     if (!joinLanding) return
+    if (isMobile) return
     if (joined) return
     if (!roomCode || !name) return
     if (autoJoinAttemptedRef.current === roomCode) return
     autoJoinAttemptedRef.current = roomCode
     joinRoom()
-  }, [isGameHost, joinLanding, joined, roomCode, name])
+  }, [isGameHost, joinLanding, isMobile, joined, roomCode, name])
 
   // Host actions
   const buildTimerState = (durationSec) => {
