@@ -108,7 +108,7 @@ const THEMES = {
         gradientTo: '#2b1b63',
         emojis: ['✦', '✸', '✷', '✺', '✧'],
         palette: ['#c7d2fe', '#bfdbfe', '#fde68a', '#f97316'],
-        emojiCount: 250,
+        emojiCount: 150,
       }),
     },
   },
@@ -126,7 +126,7 @@ const THEMES = {
         gradientTo: '#d11d1d',
         emojis: ['✶', '✴', '✵', '✷', '✦', '✺'],
         palette: ['#fecdd3', '#fef08a', '#bbf7d0', '#bfdbfe'],
-        emojiCount: 250,
+        emojiCount: 150,
       }),
     },
   },
@@ -144,7 +144,7 @@ const THEMES = {
         gradientTo: '#4c1d95',
         emojis: ['⬣', '◆', '◇', '⬢', '⬡', '✦', '✧', '✩'],
         palette: ['#fcd34d', '#f472b6', '#a78bfa', '#34d399'],
-        emojiCount: 250,
+        emojiCount: 150,
       }),
     },
   },
@@ -162,7 +162,7 @@ const THEMES = {
         gradientTo: '#f59e0b',
         emojis: ['✦', '✸', '✹', '✺', '✼', '✻', '✳', '✴'],
         palette: ['#fde68a', '#fca5a5', '#93c5fd', '#c4b5fd'],
-        emojiCount: 250,
+        emojiCount: 150,
       }),
     },
   },
@@ -180,7 +180,7 @@ const THEMES = {
         gradientTo: '#a855f7',
         emojis: ['✦', '✴', '✹', '✷', '✼', '✵', '✸', '✧'],
         palette: ['#c7d2fe', '#bae6fd', '#fecdd3', '#bbf7d0'],
-        emojiCount: 250,
+        emojiCount: 150,
       }),
     },
   },
@@ -940,6 +940,15 @@ export default function App() {
     return { durationSec: duration, endAtMs: 0, paused: true, pausedRemainingSec: duration, updatedAt: serverTimestamp() }
   }
 
+  const computeRemainingSeconds = (timer = {}) => {
+    if (!timer) return Infinity
+    const duration = Number(timer.durationSec ?? 0)
+    if (timer.paused) return Math.max(0, Math.floor(Number(timer.pausedRemainingSec ?? duration ?? 0)))
+    const endMs = Number(timer.endAtMs ?? 0)
+    if (!endMs) return Infinity
+    return Math.max(0, Math.ceil((endMs - nowMs()) / 1000))
+  }
+
   const hostSaveMeta = async () => {
     if (!isGameHost) return
     if (!roomRef) return
@@ -1200,8 +1209,10 @@ export default function App() {
     setTimerHydrated(false)
     setLoadingRoom(true)
     setJoined(isHost)
+    setHostWinningBidMessage('')
     setPrivateNotice('')
     setMobileWinningNotice('')
+    lastWinningBidRef.current = { round: null, leaderId: null, amount: null }
     initialRoomSyncRef.current = false
     setRoomCode(newCode)
   }
@@ -1227,17 +1238,23 @@ export default function App() {
     const bidsCol = collection(db, 'rooms', roomCode, 'bids')
     const bidMoment = nowMs()
 
-      try {
-        const result = await runTransaction(db, async (tx) => {
-          const snap = await tx.get(roomRef)
-          if (!snap.exists()) return { ok:false, reason:'no-room' }
-          const data = snap.data()
-          const current = Number(data.currentBid ?? 0)
+    try {
+      const result = await runTransaction(db, async (tx) => {
+        const snap = await tx.get(roomRef)
+        if (!snap.exists()) return { ok:false, reason:'no-room' }
+        const data = snap.data()
+        const current = Number(data.currentBid ?? 0)
 
-          const pSnap = await tx.get(pRef)
-          const pName = (pSnap.exists() && pSnap.data().name) ? pSnap.data().name : 'Player'
-          const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : 0
-          if (balance < current) return { ok:false, reason:'insufficient', amount: current, balance }
+        const remainingSec = computeRemainingSeconds(data.timer)
+        if (remainingSec <= 1) {
+          const lockedAmount = Number(data.leadingBid?.amount ?? data.currentBid ?? 0)
+          return { ok:false, reason:'final-second-lock', amount: lockedAmount }
+        }
+
+        const pSnap = await tx.get(pRef)
+        const pName = (pSnap.exists() && pSnap.data().name) ? pSnap.data().name : 'Player'
+        const balance = pSnap.exists() && pSnap.data()?.balance != null ? Number(pSnap.data().balance) : 0
+        if (balance < current) return { ok:false, reason:'insufficient', amount: current, balance }
 
         const alreadyClaimed = data.currentPriceHasBid && Number(data.leadingBid?.amount ?? 0) === current
         if (alreadyClaimed) return { ok:false, reason:'already-claimed', amount: current, name: data.leadingBid?.name }
@@ -1258,6 +1275,9 @@ export default function App() {
         }
         sayBidPlaced()
         playSparkleSound()
+      } else if (result.reason === 'final-second-lock') {
+        setPrivateNotice('⏱️ Bidding is locked for the final second.')
+        if (!isGameHost && isMobile) setMobileWinningNotice('')
       } else if (result.reason === 'already-claimed') {
         if (preserveWinningNotice) return
         setPrivateNotice(`⏱️ Too slow! Someone locked in the bid at $${result.amount}.`)
