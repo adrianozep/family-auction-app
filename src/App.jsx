@@ -1256,6 +1256,7 @@ export default function App() {
 
     const currentBid = Number(room?.currentBid ?? 0)
     const showWinner = !!room?.revealedWinner && timerHydrated && timeLeft <= 0
+    const isBetweenRounds = room?.roundReady && !room?.started
     const stagedStatusText = isGameHost || !isMobile
       ? 'Round is staged. Update settings and tap Start Round when ready.'
       : 'Waiting for the next round to start'
@@ -1264,7 +1265,7 @@ export default function App() {
       ? room?.revealedWinner?.name
         ? `${room.revealedWinner.name} won this round at $${room.revealedWinner.amount}`
         : 'Round finished.'
-      : room?.roundReady && !room?.started
+      : isBetweenRounds
         ? stagedStatusText
         : room?.currentPriceHasBid
           ? lockedBidMessage
@@ -1274,14 +1275,17 @@ export default function App() {
       : baseStatusText
     const statusKind = showWinner || room?.currentPriceHasBid ? 'ok' : 'warn'
     const isLeadingPlayer = room?.currentPriceHasBid && room?.leadingBid?.playerId === playerId
+    const isLockedOutNotice = !!privateNotice && privateNotice.toLowerCase().includes('too slow! someone locked in the bid')
     const roundNumber = Number(room?.roundNumber ?? 1)
     const hasEstablishedWinningBid =
       lastWinningBidRef.current.round === roundNumber && lastWinningBidRef.current.amount !== null
-    const currentWinningBidAmount = Number(room?.currentBid ?? 0)
+    const currentWinningBidAmount = Number(hasEstablishedWinningBid ? lastWinningBidRef.current.amount : 0)
     const showCurrentWinningBidChip =
       isMobile &&
       !isGameHost &&
       !showWinner &&
+      !isLockedOutNotice &&
+      !isBetweenRounds &&
       hasEstablishedWinningBid &&
       room?.leadingBid?.playerId &&
       room?.leadingBid?.playerId !== playerId
@@ -1332,12 +1336,18 @@ export default function App() {
       </div>
     )
     const showLivePlayers = !isGameHost && !isMobile
-    const isLockedOutNotice = !!privateNotice && privateNotice.toLowerCase().includes('too slow! someone locked in the bid')
-    const showMobileTopNotice = isMobile && !isGameHost && isLockedOutNotice
+    const showMobileTopNotice = isMobile && !isGameHost && isLockedOutNotice && !isBetweenRounds
     const shouldShowBottomNotice =
       privateNotice &&
       !isGameHost &&
-      (!isMobile || (privateNotice !== mobileWinningNotice && !showMobileTopNotice))
+      (!isMobile || (privateNotice !== mobileWinningNotice && !showMobileTopNotice)) &&
+      !(isBetweenRounds && isLockedOutNotice)
+
+    useEffect(() => {
+      if (!showWinner && !isBetweenRounds) return
+      if (!mobileWinningNotice) return
+      setMobileWinningNotice('')
+    }, [showWinner, isBetweenRounds, mobileWinningNotice])
 
     useEffect(() => {
       if (!showWinner) return
@@ -1373,7 +1383,7 @@ export default function App() {
   useEffect(() => {
     if (!room) return
     const current = Number(room.currentBid ?? 0)
-    const hasStarted = room.started || room.roundReady
+    const hasStarted = room.started
 
     if (previousBidRef.current !== null && current !== previousBidRef.current && hasStarted) {
       if (!isGameHost) {
@@ -1382,7 +1392,7 @@ export default function App() {
       }
     }
     previousBidRef.current = current
-  }, [room?.currentBid, room?.started, room?.roundReady, isGameHost, playHostRaiseTriplet])
+  }, [room?.currentBid, room?.started, isGameHost, playHostRaiseTriplet])
 
   useEffect(() => {
     if (!room) return
@@ -1770,7 +1780,7 @@ export default function App() {
               <span>{hostWinningBidMessage}</span>
             </div>
           )}
-          {isMobile && mobileWinningNotice && (
+          {isMobile && mobileWinningNotice && !showWinner && (
             <div className="chip winningChip" aria-live="polite" style={{ marginTop: 6 }}>
               <span>{mobileWinningNotice}</span>
             </div>
