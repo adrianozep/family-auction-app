@@ -369,6 +369,7 @@ export default function App() {
   const handledLockedBidRef = useRef(null)
   const lastLockedSoundRef = useRef(null)
   const lastWinningBidRef = useRef({ round: null, leaderId: null, amount: null })
+  const lastHostRaiseStateRef = useRef({ bid: null, priceLocked: true })
 
   // Host + player notices
   const [hostWinningBidMessage, setHostWinningBidMessage] = useState(() => readStoredValue(hostNoticeKey))
@@ -376,6 +377,7 @@ export default function App() {
   // Player private notice
   const [privateNotice, setPrivateNotice] = useState(() => readStoredValue(privateNoticeKey))
   const [mobileWinningNotice, setMobileWinningNotice] = useState(() => readStoredValue(mobileNoticeKey))
+  const [lastHostRaiseBid, setLastHostRaiseBid] = useState(null)
   const autoJoinAttemptedRef = useRef(null)
 
   useEffect(() => {
@@ -1263,8 +1265,9 @@ export default function App() {
       isMobile &&
       !isGameHost &&
       !showWinner &&
-      room?.currentPriceHasBid &&
-      room?.leadingBid?.playerId !== playerId
+      room?.leadingBid?.playerId !== playerId &&
+      lastHostRaiseBid !== null &&
+      lastHostRaiseBid === Number(room?.currentBid ?? 0)
     const showQrDetails = !isMobile || !room?.started || showWinner
     const activeThemeKey = room?.theme || themeKey
     const roundNumber = Number(room?.roundNumber ?? 1)
@@ -1385,7 +1388,11 @@ export default function App() {
       lastWinningBidRef.current = { round: roundNumber, leaderId: null, amount: null }
       setHostWinningBidMessage('')
       if (isMobile) {
-        setMobileWinningNotice('')
+        if (!isGameHost && room?.leadingBid?.playerId === playerId && mobileWinningNotice) {
+          // Preserve the winning notice for the current leader until a new winner appears.
+        } else {
+          setMobileWinningNotice('')
+        }
       }
       return
     }
@@ -1430,10 +1437,30 @@ export default function App() {
     hostWinningBidMessage,
   ])
 
-    useEffect(() => {
-      if (!room) return
-      if (isGameHost) return
-      if (!isMobile) return
+  useEffect(() => {
+    if (!room) return
+
+    const current = Number(room.currentBid ?? 0)
+    const priceLocked = !!room.currentPriceHasBid
+    const prev = lastHostRaiseStateRef.current
+    const transitionedToUnlocked = prev.priceLocked && !priceLocked
+    const bidChanged = prev.bid === null ? true : current !== prev.bid
+
+    if (transitionedToUnlocked && bidChanged && room.started) {
+      setLastHostRaiseBid(current)
+    }
+
+    if (priceLocked) {
+      setLastHostRaiseBid(null)
+    }
+
+    lastHostRaiseStateRef.current = { bid: current, priceLocked }
+  }, [room?.currentBid, room?.currentPriceHasBid, room?.started])
+
+  useEffect(() => {
+    if (!room) return
+    if (isGameHost) return
+    if (!isMobile) return
 
       if (!room.currentPriceHasBid) {
         handledLockedBidRef.current = null
