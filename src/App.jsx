@@ -104,7 +104,7 @@ const THEMES = {
         gradientTo: '#2b1b63',
         emojis: ['✦', '✸', '✷', '✺', '✧'],
         palette: ['#c7d2fe', '#bfdbfe', '#fde68a', '#f97316'],
-        emojiCount: 350,
+        emojiCount: 250,
       }),
     },
   },
@@ -122,7 +122,7 @@ const THEMES = {
         gradientTo: '#d11d1d',
         emojis: ['✶', '✴', '✵', '✷', '✦', '✺'],
         palette: ['#fecdd3', '#fef08a', '#bbf7d0', '#bfdbfe'],
-        emojiCount: 350,
+        emojiCount: 250,
       }),
     },
   },
@@ -140,7 +140,7 @@ const THEMES = {
         gradientTo: '#4c1d95',
         emojis: ['⬣', '◆', '◇', '⬢', '⬡', '✦', '✧', '✩'],
         palette: ['#fcd34d', '#f472b6', '#a78bfa', '#34d399'],
-        emojiCount: 350,
+        emojiCount: 250,
       }),
     },
   },
@@ -158,7 +158,7 @@ const THEMES = {
         gradientTo: '#f59e0b',
         emojis: ['✦', '✸', '✹', '✺', '✼', '✻', '✳', '✴'],
         palette: ['#fde68a', '#fca5a5', '#93c5fd', '#c4b5fd'],
-        emojiCount: 350,
+        emojiCount: 250,
       }),
     },
   },
@@ -176,7 +176,7 @@ const THEMES = {
         gradientTo: '#a855f7',
         emojis: ['✦', '✴', '✹', '✷', '✼', '✵', '✸', '✧'],
         palette: ['#c7d2fe', '#bae6fd', '#fecdd3', '#bbf7d0'],
-        emojiCount: 350,
+        emojiCount: 250,
       }),
     },
   },
@@ -378,6 +378,23 @@ export default function App() {
   const [mobileWinningNotice, setMobileWinningNotice] = useState(() => readStoredValue(mobileNoticeKey))
   const autoJoinAttemptedRef = useRef(null)
 
+  const handleRoomEndedForClient = useCallback((reason = '') => {
+    setRoom(null)
+    setPlayers([])
+    setJoined(false)
+    setPrivateNotice(reason)
+    setMobileWinningNotice('')
+    setName('')
+    setRoomCode('')
+    setLoadingRoom(false)
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('auction_player_name')
+        localStorage.removeItem('auction_last_room')
+      }
+    } catch {}
+  }, [])
+
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
     if (roomCode) localStorage.setItem('auction_last_room', roomCode)
@@ -471,17 +488,7 @@ export default function App() {
           setRoom(null)
           setPlayers([])
           if (!isHost) {
-            setJoined(false)
-            setPrivateNotice('')
-            setMobileWinningNotice('')
-            setName('')
-            setRoomCode('')
-            try {
-              if (typeof localStorage !== 'undefined') {
-                localStorage.removeItem('auction_player_name')
-                localStorage.removeItem('auction_last_room')
-              }
-            } catch {}
+            handleRoomEndedForClient('The host ended the game.')
           }
           return
         }
@@ -490,7 +497,13 @@ export default function App() {
       () => setLoadingRoom(false)
     )
     return () => unsub()
-  }, [roomRef, isHost])
+  }, [roomRef, isHost, handleRoomEndedForClient])
+
+  useEffect(() => {
+    if (!room?.endedAt) return
+    if (isHost) return
+    handleRoomEndedForClient('The host ended the game.')
+  }, [room?.endedAt, isHost, handleRoomEndedForClient])
 
   // Subscribe to players realtime (everyone sees arrivals live)
   useEffect(() => {
@@ -1154,6 +1167,7 @@ export default function App() {
   const hostEndGame = async () => {
     if (!isGameHost) return
     if (!roomRef) return
+    await setDoc(roomRef, { endedAt: serverTimestamp() }, { merge: true })
     const playersRef = collection(db, 'rooms', roomCode, 'players')
     const bidsRef = collection(db, 'rooms', roomCode, 'bids')
 
